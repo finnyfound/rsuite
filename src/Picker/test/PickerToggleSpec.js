@@ -1,43 +1,58 @@
 import React from 'react';
 import ReactTestUtils from 'react-dom/test-utils';
+import { render } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import Toggle from '../PickerToggle';
 import { getDOMNode } from '@test/testUtils';
 
-describe('Toggle', () => {
+describe('<PickerToggle>', () => {
   it('Should output a toggle', () => {
     const Title = 'Title';
     const instance = getDOMNode(<Toggle title="title">{Title}</Toggle>);
 
-    assert.equal(instance.tagName, 'A');
+    assert.equal(instance.tagName, 'DIV');
     assert.include(instance.className, 'toggle');
-    assert.equal(instance.innerText, Title);
+    assert.equal(instance.textContent, Title);
   });
 
   it('Should output a button', () => {
     const Title = 'Title';
     const instance = getDOMNode(
-      <Toggle title="title" componentClass="button">
+      <Toggle title="title" as="button">
         {Title}
       </Toggle>
     );
 
     assert.equal(instance.tagName, 'BUTTON');
     assert.include(instance.className, 'toggle');
-    assert.equal(instance.innerText, Title);
+    assert.equal(instance.textContent, Title);
   });
 
-  it('Should call `onClean` callback', done => {
-    const doneOp = () => {
-      done();
-    };
-    const instance = getDOMNode(
-      <Toggle title="title" hasValue cleanable onClean={doneOp}>
-        Title
-      </Toggle>
-    );
+  describe('Cleanable (`cleanable`=true)', () => {
+    it('Should render a clear button when value is present', () => {
+      const { getByRole } = render(
+        <Toggle cleanable hasValue>
+          Title
+        </Toggle>
+      );
 
-    ReactTestUtils.Simulate.click(instance.querySelector('.rs-picker-toggle-clean'));
+      expect(getByRole('button', { name: /clear/i })).to.exist;
+    });
+
+    it('Should call `onClean` callback when clicking clear button', () => {
+      const onCleanSpy = sinon.spy();
+
+      const { getByRole } = render(
+        <Toggle cleanable hasValue onClean={onCleanSpy}>
+          Title
+        </Toggle>
+      );
+
+      userEvent.click(getByRole('button', { name: /clear/i }));
+
+      expect(onCleanSpy).to.have.been.called;
+    });
   });
 
   it('Should call onBlur callback', done => {
@@ -71,5 +86,32 @@ describe('Toggle', () => {
   it('Should have a custom className prefix', () => {
     const instance = getDOMNode(<Toggle classPrefix="custom-prefix" />);
     assert.ok(instance.className.match(/\bcustom-prefix\b/));
+  });
+
+  it('Should add value to input', () => {
+    const instance = getDOMNode(
+      <Toggle title="title" inputValue={['value1', 'value2']}>
+        Title
+      </Toggle>
+    );
+    assert.ok(instance.querySelector('[value="value1,value2"]'));
+  });
+
+  it('Should be disabled', () => {
+    const instance = getDOMNode(<Toggle disabled>Title</Toggle>);
+    assert.equal(instance.getAttribute('aria-disabled'), 'true');
+    assert.equal(instance.getAttribute('tabindex'), undefined);
+  });
+
+  it('Should render a custom caret', () => {
+    const MyCaret = props => (
+      <span data-testid="caret" {...props}>
+        ⬇️
+      </span>
+    );
+
+    const { getByTestId } = render(<Toggle caretAs={MyCaret} />);
+
+    expect(getByTestId('caret')).to.have.class('rs-picker-toggle-caret');
   });
 });

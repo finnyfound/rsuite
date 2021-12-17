@@ -1,9 +1,10 @@
 import React from 'react';
 import ReactTestUtils from 'react-dom/test-utils';
-
+import { render } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import PanelGroup from '../PanelGroup';
 import Panel from '../../Panel';
-import { innerText, getDOMNode } from '@test/testUtils';
+import { getDOMNode } from '@test/testUtils';
 
 describe('PanelGroup', () => {
   it('Should render a PanelGroup', () => {
@@ -13,7 +14,7 @@ describe('PanelGroup', () => {
 
     assert.equal(instanceDom.tagName, 'DIV');
     assert.ok(instanceDom.className.match(/\bpanel-group\b/));
-    assert.equal(innerText(instanceDom), title);
+    assert.equal(instanceDom.textContent, title);
   });
 
   it('Should render 2 Panels', () => {
@@ -28,8 +29,11 @@ describe('PanelGroup', () => {
 
   it('Should call onSelect callback', done => {
     const doneOp = eventKey => {
-      if (eventKey === 2) {
+      try {
+        assert.equal(eventKey, 2);
         done();
+      } catch (err) {
+        done(err);
       }
     };
     const instance = getDOMNode(
@@ -42,7 +46,19 @@ describe('PanelGroup', () => {
         </Panel>
       </PanelGroup>
     );
-    ReactTestUtils.Simulate.click(instance.querySelectorAll('.rs-panel-heading')[1]);
+    ReactTestUtils.Simulate.click(instance.querySelectorAll('.rs-panel-header')[1]);
+  });
+
+  it('Should call `onSelect` with undefined when click on Panel without eventKey', () => {
+    const onSelectSpy = sinon.spy();
+    const { getByText } = render(
+      <PanelGroup accordion onSelect={onSelectSpy}>
+        <Panel header="Click me">111</Panel>
+      </PanelGroup>
+    );
+
+    userEvent.click(getByText('Click me'));
+    expect(onSelectSpy).to.have.been.calledWith(undefined);
   });
 
   it('Should have a custom className', () => {

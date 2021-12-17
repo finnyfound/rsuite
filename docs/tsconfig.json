@@ -19,8 +19,7 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@rsuite-locales/*": ["./node_modules/rsuite/lib/IntlProvider/locales/*"]
+      "@/*": ["./*"]
     }
   },
   "exclude": ["node_modules"],

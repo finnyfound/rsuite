@@ -1,119 +1,86 @@
-import * as React from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import classNames from 'classnames';
+import getOffset from 'dom-lib/getOffset';
+import on from 'dom-lib/on';
 import Transition from '../Animation/Transition';
-import { getOffset, on } from 'dom-lib';
-import { defaultProps, getUnhandledProps, prefix } from '../utils';
-import { RippleProps } from './Ripple.d';
+import { mergeRefs, useClassNames } from '../utils';
+import { WithAsProps } from '../@types/common';
 
-interface RippleState {
-  rippling: boolean;
-  position: React.CSSProperties;
+export interface RippleProps extends WithAsProps {
+  onMouseDown?: (position: any, event: React.MouseEvent) => void;
 }
 
-class Ripple extends React.Component<RippleProps, RippleState> {
-  static propTypes = {
-    classPrefix: PropTypes.string,
-    className: PropTypes.string,
-    onMouseDown: PropTypes.func
-  };
-  triggerRef: React.RefObject<HTMLElement>;
+const getPosition = (target: HTMLElement, event: React.MouseEvent) => {
+  const offset = getOffset(target)!;
+  const offsetX = (event.pageX || 0) - offset.left;
+  const offsetY = (event.pageY || 0) - offset.top;
 
-  constructor(props: RippleProps) {
-    super(props);
-    this.state = {
-      rippling: false,
-      position: {}
+  const radiusX = Math.max(offset.width - offsetX, offsetX);
+  const radiusY = Math.max(offset.height - offsetY, offsetY);
+  const radius = Math.sqrt(Math.pow(radiusX, 2) + Math.pow(radiusY, 2));
+
+  return {
+    width: radius * 2,
+    height: radius * 2,
+    left: offsetX - radius,
+    top: offsetY - radius
+  };
+};
+
+const Ripple = React.forwardRef((props: RippleProps, ref: React.Ref<HTMLSpanElement>) => {
+  const { as: Component = 'span', className, classPrefix = 'ripple', onMouseDown, ...rest } = props;
+  const { merge, prefix, withClassPrefix } = useClassNames(classPrefix);
+  const classes = merge(className, prefix('pond'));
+  const triggerRef = useRef<HTMLElement>(null);
+  const [rippling, setRippling] = useState(false);
+  const [position, setPosition] = useState<React.CSSProperties>();
+
+  const handleRippled = () => {
+    setRippling(false);
+  };
+
+  const handleMouseDown = useCallback(
+    (event: React.MouseEvent) => {
+      const position = getPosition(triggerRef.current!, event);
+      setRippling(true);
+      setPosition(position);
+      onMouseDown?.(position, event);
+    },
+    [onMouseDown]
+  );
+
+  useEffect(() => {
+    const parentNode = triggerRef.current!.parentNode as HTMLElement;
+    const mousedownListener = on(parentNode, 'mousedown', handleMouseDown);
+    return () => {
+      mousedownListener?.off();
     };
+  }, [handleMouseDown]);
 
-    this.triggerRef = React.createRef();
-  }
-  mousedownListener: {
-    off: () => void;
-  } = null;
+  return (
+    <Component {...rest} className={classes} ref={mergeRefs(triggerRef, ref)}>
+      <Transition in={rippling} enteringClassName={prefix('rippling')} onEntered={handleRippled}>
+        {(props, ref) => {
+          const { className, ...transitionRest } = props;
+          return (
+            <span
+              {...transitionRest}
+              ref={ref}
+              className={merge(withClassPrefix(), className)}
+              style={position}
+            />
+          );
+        }}
+      </Transition>
+    </Component>
+  );
+});
 
-  componentDidMount() {
-    if (this.triggerRef.current) {
-      this.mousedownListener = on(
-        this.triggerRef.current.parentNode,
-        'mousedown',
-        this.handleMouseDown
-      );
-    }
-  }
-  componentWillUnmount() {
-    if (this.mousedownListener) {
-      this.mousedownListener.off();
-    }
-  }
+Ripple.displayName = 'Ripple';
+Ripple.propTypes = {
+  classPrefix: PropTypes.string,
+  className: PropTypes.string,
+  onMouseDown: PropTypes.func
+};
 
-  getPosition = (event: React.MouseEvent) => {
-    const offset = getOffset(this.triggerRef.current);
-    const offsetX = (event.pageX || 0) - offset.left;
-    const offsetY = (event.pageY || 0) - offset.top;
-
-    const radiusX = Math.max(offset.width - offsetX, offsetX);
-    const radiusY = Math.max(offset.height - offsetY, offsetY);
-    const radius = Math.sqrt(Math.pow(radiusX, 2) + Math.pow(radiusY, 2));
-
-    return {
-      width: radius * 2,
-      height: radius * 2,
-      left: offsetX - radius,
-      top: offsetY - radius
-    };
-  };
-
-  handleMouseDown = (event: React.MouseEvent) => {
-    const position = this.getPosition(event);
-    const { onMouseDown } = this.props;
-
-    this.setState({
-      rippling: true,
-      position
-    });
-
-    onMouseDown?.(position, event);
-  };
-
-  handleRippled = () => {
-    this.setState({
-      rippling: false
-    });
-  };
-
-  addPrefix = (name: string) => prefix(this.props.classPrefix)(name);
-
-  render() {
-    const { className, classPrefix, ...rest } = this.props;
-    const classes = classNames(this.addPrefix('pond'), className);
-    const { position, rippling } = this.state;
-    const unhandled = getUnhandledProps(Ripple, rest);
-
-    return (
-      <span {...unhandled} className={classes} ref={this.triggerRef}>
-        <Transition
-          in={rippling}
-          enteringClassName={this.addPrefix('rippling')}
-          onEntered={this.handleRippled}
-        >
-          {(props, ref) => {
-            const { className, ...transitionRest } = props;
-            return (
-              <span
-                {...transitionRest}
-                ref={ref}
-                className={classNames(classPrefix, className)}
-                style={position}
-              />
-            );
-          }}
-        </Transition>
-      </span>
-    );
-  }
-}
-
-export default defaultProps<RippleProps>({
-  classPrefix: 'ripple'
-})(Ripple);
+export default Ripple;

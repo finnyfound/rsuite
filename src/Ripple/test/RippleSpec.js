@@ -1,4 +1,6 @@
 import React from 'react';
+import { render } from '@testing-library/react';
+import ReactTestUtils from 'react-dom/test-utils';
 import { getDOMNode } from '@test/testUtils';
 import Ripple from '../Ripple';
 
@@ -12,14 +14,17 @@ describe('Ripple', () => {
     const doneOp = () => {
       done();
     };
-    const instance = getDOMNode(
-      <div style={{ width: 100, height: 100 }}>
+    const ref = React.createRef();
+    render(
+      <div ref={ref} style={{ width: 100, height: 100 }}>
         <Ripple onMouseDown={doneOp} />
       </div>
     );
 
-    const event = new Event('mousedown');
-    instance.dispatchEvent(event);
+    ReactTestUtils.act(() => {
+      const event = new Event('mousedown');
+      ref.current.dispatchEvent(event);
+    });
   });
 
   it('Should have a custom className prefix', () => {

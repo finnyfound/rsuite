@@ -3,14 +3,13 @@ import ReactTestUtils from 'react-dom/test-utils';
 import { getDOMNode } from '@test/testUtils';
 
 import ModalHeader from '../ModalHeader';
-import { innerText } from '@test/testUtils';
 
 describe('ModalHeader', () => {
   it('Should render a modal header', () => {
     const title = 'Test';
     const instance = getDOMNode(<ModalHeader>{title}</ModalHeader>);
     assert.equal(instance.className, 'rs-modal-header');
-    assert.equal(innerText(instance), '×Test');
+    assert.equal(instance.textContent, 'Test');
   });
 
   it('Should hide close button', () => {
@@ -19,11 +18,11 @@ describe('ModalHeader', () => {
     assert.ok(!instance.querySelector('button'));
   });
 
-  it('Should call onHide callback', done => {
+  it('Should call onClose callback', done => {
     const doneOp = () => {
       done();
     };
-    const instance = getDOMNode(<ModalHeader onHide={doneOp} />);
+    const instance = getDOMNode(<ModalHeader onClose={doneOp} />);
     ReactTestUtils.Simulate.click(instance.querySelector('.rs-modal-header-close'));
   });
 

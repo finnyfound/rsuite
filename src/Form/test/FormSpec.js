@@ -1,4 +1,5 @@
 import React from 'react';
+import { render } from '@testing-library/react';
 import ReactTestUtils from 'react-dom/test-utils';
 import _isNil from 'lodash/isNil';
 import _omit from 'lodash/omit';
@@ -158,7 +159,7 @@ describe('Form', () => {
     });
   });
 
-  it('Should be {n1} for formError when call cleanErrorForFiled', () => {
+  it('Should be {n1} for formError when call cleanErrorForField', () => {
     const values = {
       n1: 1,
       n2: 1
@@ -175,7 +176,7 @@ describe('Form', () => {
       </Form>
     );
     instance.check();
-    instance.cleanErrorForFiled('n2', () => {
+    instance.cleanErrorForField('n2', () => {
       assert.equal(instance.state.formError.n1, 'error');
       assert.equal(instance.state.formError.n2, undefined);
     });
@@ -195,14 +196,17 @@ describe('Form', () => {
     });
   });
 
-  it('Should call onChange callback', done => {
+  it('Should call onChange callback with correct form values', done => {
     const values = {
       name: 'abc'
     };
 
     const doneOp = v => {
-      if (v.name === values.name) {
+      try {
+        assert.deepEqual(v, values);
         done();
+      } catch (err) {
+        done(err);
       }
     };
     const instance = getDOMNode(
@@ -222,6 +226,7 @@ describe('Form', () => {
       number: Schema.Types.StringType().isRequired(tip)
     });
 
+    const formRef = React.createRef();
     class Demo extends React.Component {
       constructor(props) {
         super(props);
@@ -293,7 +298,12 @@ describe('Form', () => {
                 _isNil(formError.name2) &&
                 formValue.name3 === 'abc@qq.com' &&
                 _isNil(formError.name3);
-              this.result && done();
+              try {
+                assert.isTrue(this.result);
+                done();
+              } catch (err) {
+                done(err);
+              }
           }
         });
 
@@ -301,7 +311,7 @@ describe('Form', () => {
         const { formValue, formError } = this.state;
         return (
           <Form
-            ref={ref => (this.form = ref)}
+            ref={formRef}
             model={curModel}
             formValue={formValue}
             formError={formError}
@@ -317,8 +327,9 @@ describe('Form', () => {
       }
     }
 
-    const instance = getInstance(<Demo />);
-    const element = getDOMNode(instance.form);
+    getInstance(<Demo />);
+
+    const element = formRef.current.root;
     ReactTestUtils.Simulate.change(element.querySelector('input[name="name1"]'));
     ReactTestUtils.Simulate.change(element.querySelector('input[name="name2"]'));
     ReactTestUtils.Simulate.change(element.querySelector('input[name="name3"]'));
@@ -331,8 +342,11 @@ describe('Form', () => {
     };
 
     const doneOp = v => {
-      if (v.name === checkEmail) {
+      try {
+        assert.equal(v.name, checkEmail);
         done();
+      } catch (err) {
+        done(err);
       }
     };
     const instance = getDOMNode(
@@ -373,8 +387,11 @@ describe('Form', () => {
     };
 
     const doneOp = v => {
-      if (typeof v.name === 'undefined') {
+      try {
+        assert.typeOf(v.name, 'undefined');
         done();
+      } catch (err) {
+        done(err);
       }
     };
     const instance = getDOMNode(
@@ -391,8 +408,11 @@ describe('Form', () => {
     };
 
     const doneOp = v => {
-      if (typeof v.name === 'undefined') {
+      try {
+        assert.typeOf(v.name, 'undefined');
         done();
+      } catch (err) {
+        done(err);
       }
     };
     const instance = getDOMNode(
@@ -434,8 +454,13 @@ describe('Form', () => {
     };
 
     const doneOp = v => {
-      if (v.email === 'email is null') {
+      try {
+        assert.deepEqual(v, {
+          email: 'email is null'
+        });
         done();
+      } catch (err) {
+        done(err);
       }
     };
     const instance = getDOMNode(
@@ -474,8 +499,13 @@ describe('Form', () => {
       name: 'abc'
     };
     const doneOp = v => {
-      if (v.name === 'Duplicate name') {
+      try {
+        assert.deepEqual(v, {
+          name: 'Duplicate name'
+        });
         done();
+      } catch (err) {
+        done(err);
       }
     };
     const instance = getDOMNode(
@@ -496,8 +526,11 @@ describe('Form', () => {
       </Form>
     );
     instance.checkAsync().then(result => {
-      if (result.hasError) {
+      try {
+        assert.isTrue(result.hasError);
         done();
+      } catch (err) {
+        done(err);
       }
     });
   });
@@ -512,9 +545,111 @@ describe('Form', () => {
       </Form>
     );
     instance.checkForFieldAsync('name').then(result => {
-      if (result.hasError) {
+      try {
+        assert.isTrue(result.hasError);
         done();
+      } catch (err) {
+        done(err);
       }
+    });
+  });
+
+  it('Should support complex inspections by onChange', done => {
+    const model = Schema.Model({
+      items: Schema.Types.ArrayType().of(
+        Schema.Types.ObjectType().shape({
+          field1: Schema.Types.StringType().isRequired('error1'),
+          field2: Schema.Types.NumberType().isRequired('error2')
+        })
+      )
+    });
+
+    // eslint-disable-next-line react/prop-types
+    const Field = ({ onChange }) => {
+      const handleChange = () => {
+        onChange([{ field1: '', field2: '' }]);
+      };
+      return <input name="items" onChange={handleChange} />;
+    };
+
+    const values = {
+      items: []
+    };
+
+    const doneOp = error => {
+      const item = error.items.array[0].object;
+      try {
+        assert.isTrue(error.items.hasError);
+        assert.deepEqual(item, {
+          field1: {
+            hasError: true,
+            errorMessage: 'error1'
+          },
+          field2: {
+            hasError: true,
+            errorMessage: 'error2'
+          }
+        });
+        done();
+      } catch (err) {
+        done(err);
+      }
+    };
+    const instance = getDOMNode(
+      <Form formDefaultValue={values} onError={doneOp} model={model}>
+        <FormControl name="items" accepter={Field} />
+      </Form>
+    );
+    ReactTestUtils.Simulate.change(instance.querySelector('input[name="items"]'));
+  });
+
+  it('Should support complex inspections by check method ', done => {
+    const model = Schema.Model({
+      items: Schema.Types.ArrayType().of(
+        Schema.Types.ObjectType().shape({
+          field1: Schema.Types.StringType().isRequired('error1'),
+          field2: Schema.Types.NumberType().isRequired('error2')
+        })
+      )
+    });
+
+    const Field = () => {
+      return <input name="items" />;
+    };
+
+    const values = {
+      items: [{ field1: '', field2: '' }]
+    };
+
+    const doneOp = error => {
+      const item = error.items.array[0].object;
+      try {
+        assert.isTrue(error.items.hasError);
+        assert.deepEqual(item, {
+          field1: {
+            hasError: true,
+            errorMessage: 'error1'
+          },
+          field2: {
+            hasError: true,
+            errorMessage: 'error2'
+          }
+        });
+        done();
+      } catch (err) {
+        done(err);
+      }
+    };
+
+    const formRef = React.createRef();
+
+    render(
+      <Form formDefaultValue={values} onError={doneOp} model={model} ref={formRef}>
+        <FormControl name="items" accepter={Field} />
+      </Form>
+    );
+    ReactTestUtils.act(() => {
+      formRef.current.check();
     });
   });
 });

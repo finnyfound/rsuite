@@ -1,8 +1,6 @@
 import React from 'react';
-import ReactTestUtils from 'react-dom/test-utils';
-import { getDOMNode, getInstance } from '@test/testUtils';
+import { getDOMNode } from '@test/testUtils';
 import Popover from '../Popover';
-import { innerText } from '@test/testUtils';
 
 describe('Popover', () => {
   it('Should render a Popover', () => {
@@ -10,12 +8,12 @@ describe('Popover', () => {
     const instance = getDOMNode(<Popover>{title}</Popover>);
     assert.equal(instance.tagName, 'DIV');
     assert.equal(instance.className, 'rs-popover');
-    assert.equal(innerText(instance), title);
+    assert.equal(instance.textContent, title);
   });
 
   it('Should be full', () => {
-    const instance = getInstance(<Popover full>Test</Popover>);
-    assert.ok(ReactTestUtils.findRenderedDOMComponentWithClass(instance, 'rs-popover-full'));
+    const instance = getDOMNode(<Popover full>Test</Popover>);
+    assert.include(instance.className, 'rs-popover-full');
   });
 
   it('Should have a id', () => {

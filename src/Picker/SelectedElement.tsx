@@ -1,5 +1,6 @@
-import * as React from 'react';
+import React from 'react';
 import reactToString from '../utils/reactToString';
+import { PickerLocale } from '../locales';
 
 export interface SelectedElementProps {
   selectedItems: any[];
@@ -7,7 +8,7 @@ export interface SelectedElementProps {
   labelKey: string;
   countable: boolean;
   cascade?: boolean;
-  locale?: any;
+  locale?: PickerLocale;
   childrenKey?: string;
   prefix: (name: string) => string;
 }
@@ -18,7 +19,7 @@ const SelectedElement = (props: SelectedElementProps) => {
     prefix,
     valueKey,
     labelKey,
-    childrenKey,
+    childrenKey = 'children',
     countable,
     cascade,
     locale
@@ -50,7 +51,7 @@ const SelectedElement = (props: SelectedElementProps) => {
             <React.Fragment key={item[valueKey]}>
               <span className={prefix('value-item')}>
                 {item[labelKey]}
-                {checkAll ? ` (${locale.checkAll})` : ''}
+                {checkAll ? ` (${locale!.checkAll})` : ''}
               </span>
               {index === count - 1 ? null : <span className={prefix('value-separator')}>,</span>}
             </React.Fragment>

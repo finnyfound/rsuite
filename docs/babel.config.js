@@ -1,6 +1,5 @@
 module.exports = (api, options) => {
-  const { NODE_ENV } = options || process.env;
-  const __PRO__ = NODE_ENV === 'production';
+  const { NODE_ENV, VERCEL_ENV = 'local' } = options || process.env;
 
   if (api) {
     api.cache(() => NODE_ENV);
@@ -15,7 +14,7 @@ module.exports = (api, options) => {
         'preset-env': {
           targets: {
             node: true,
-            browsers: ['> 1%', 'last 2 versions', 'ie >= 10']
+            browsers: ['> 1%', 'last 2 versions', 'not ie <11']
           },
           useBuiltIns: 'entry',
           corejs: 2
@@ -31,7 +30,7 @@ module.exports = (api, options) => {
      * https://github.com/babel/babel/issues/9849#issuecomment-596415994
      */
     '@babel/plugin-transform-runtime',
-    ['@babel/plugin-proposal-class-properties', { loose: true }],
+    ['@babel/plugin-proposal-class-properties'],
     '@babel/plugin-proposal-optional-chaining',
     '@babel/plugin-proposal-export-namespace-from',
     '@babel/plugin-proposal-export-default-from',
@@ -39,20 +38,15 @@ module.exports = (api, options) => {
     'add-module-exports'
   ];
 
-  if (__PRO__) {
-    presets.unshift('rsuite');
-  } else {
-    plugins.push([
-      'module-resolver',
-      {
-        alias: {
-          '@': './',
-          '@rsuite-locales': '../src/IntlProvider/locales',
-          rsuite: '../src'
-        }
-      }
-    ]);
+  const alias = {
+    '@': './'
+  };
+
+  if (VERCEL_ENV === 'preview' || VERCEL_ENV === 'local') {
+    alias.rsuite = '../src';
   }
+
+  plugins.push(['module-resolver', { alias }]);
 
   return {
     presets,

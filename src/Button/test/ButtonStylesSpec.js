@@ -1,24 +1,17 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
-import Button from '../index';
+import { render } from '@testing-library/react';
+import Button from '../Button';
 import ButtonToolbar from '../../ButtonToolbar';
-import {
-  createTestContainer,
-  getDOMNode,
-  getDefaultPalette,
-  toRGB,
-  getStyle,
-  itChrome
-} from '@test/testUtils';
+import { getDOMNode, getDefaultPalette, toRGB, getStyle, itChrome } from '@test/testUtils';
 
-import '../styles/index';
+import '../styles/index.less';
 
-const { H500, H700, H800, H900 } = getDefaultPalette();
+const { H500, H700, H900 } = getDefaultPalette();
 
 describe('Button styles', () => {
   it('Default button should render the correct styles', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(<Button ref={instanceRef}>Title</Button>, createTestContainer());
+    render(<Button ref={instanceRef}>Title</Button>);
     assert.equal(
       getStyle(getDOMNode(instanceRef.current), 'backgroundColor'),
       toRGB('#f7f7fa'),
@@ -33,11 +26,10 @@ describe('Button styles', () => {
 
   it('Primary button should render the correct styles', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(
+    render(
       <Button appearance="primary" ref={instanceRef}>
         Title
-      </Button>,
-      createTestContainer()
+      </Button>
     );
     assert.equal(
       getStyle(getDOMNode(instanceRef.current), 'backgroundColor'),
@@ -53,22 +45,20 @@ describe('Button styles', () => {
 
   it('Link button should render the correct font color', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(
+    render(
       <Button appearance="link" ref={instanceRef}>
         Title
-      </Button>,
-      createTestContainer()
+      </Button>
     );
     assert.equal(getStyle(getDOMNode(instanceRef.current), 'color'), H700);
   });
 
   it('Subtle button should render the correct styles', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(
+    render(
       <Button appearance="subtle" ref={instanceRef}>
         Title
-      </Button>,
-      createTestContainer()
+      </Button>
     );
     assert.equal(
       getStyle(getDOMNode(instanceRef.current), 'color'),
@@ -84,25 +74,23 @@ describe('Button styles', () => {
 
   it('Ghost button should render the correct styles', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(
+    render(
       <Button appearance="ghost" ref={instanceRef}>
         Title
-      </Button>,
-      createTestContainer()
+      </Button>
     );
     assert.equal(getStyle(getDOMNode(instanceRef.current), 'color'), H700);
   });
 
   itChrome('Button should render the correct padding', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(
+    render(
       <ButtonToolbar ref={instanceRef}>
         <Button size="lg">Large</Button>
         <Button size="md">Medium</Button>
         <Button size="sm">Small</Button>
         <Button size="xs">Xsmall</Button>
-      </ButtonToolbar>,
-      createTestContainer()
+      </ButtonToolbar>
     );
     const buttons = getDOMNode(instanceRef.current).children;
     const lg = buttons[0];
@@ -115,30 +103,49 @@ describe('Button styles', () => {
     assert.equal(getStyle(xs, 'padding'), '2px 8px', 'Xsmall button padding');
   });
 
-  it('Color button should render the correct color', () => {
-    const instanceRef = React.createRef();
-    ReactDOM.render(
-      <Button color="red" ref={instanceRef}>
-        Red
-      </Button>,
-      createTestContainer()
-    );
-    const dom = getDOMNode(instanceRef.current);
-    assert.equal(
-      getStyle(dom, 'backgroundColor'),
-      toRGB('#f44336'),
-      'Color button background-color'
-    );
-    assert.equal(getStyle(dom, 'color'), toRGB('#fff'), 'Color button font-color');
+  describe('Colorful buttons', () => {
+    it('Primary button should render the correct color', () => {
+      const instanceRef = React.createRef();
+      render(
+        <Button color="red" appearance="primary" ref={instanceRef}>
+          Red
+        </Button>
+      );
+      const dom = getDOMNode(instanceRef.current);
+      assert.equal(
+        getStyle(dom, 'backgroundColor'),
+        toRGB('#f44336'),
+        'Color button background-color'
+      );
+      assert.equal(getStyle(dom, 'color'), toRGB('#fff'), 'Color button font-color');
+    });
+
+    it('Subtle button should render the correct styles', () => {
+      const instanceRef = React.createRef();
+      render(
+        <Button color="red" appearance="subtle" ref={instanceRef}>
+          Red
+        </Button>
+      );
+      assert.equal(
+        getStyle(getDOMNode(instanceRef.current), 'color'),
+        toRGB('#8e8e93'),
+        'Subtle button font-color'
+      );
+      assert.equal(
+        getStyle(getDOMNode(instanceRef.current), 'backgroundColor'),
+        toRGB('#0000'),
+        'Subtle button background-color'
+      );
+    });
   });
 
   it('Button should render the correct display', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(
+    render(
       <Button block ref={instanceRef}>
         Tittle
-      </Button>,
-      createTestContainer()
+      </Button>
     );
     const dom = getDOMNode(instanceRef.current);
     assert.equal(getStyle(dom, 'display'), 'block');
@@ -146,7 +153,7 @@ describe('Button styles', () => {
 
   it('Disabled button should render the correct opacity', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(
+    render(
       <ButtonToolbar ref={instanceRef}>
         <Button appearance="default" disabled>
           Default
@@ -163,8 +170,7 @@ describe('Button styles', () => {
         <Button appearance="ghost" disabled>
           Ghost
         </Button>
-      </ButtonToolbar>,
-      createTestContainer()
+      </ButtonToolbar>
     );
     const buttons = getDOMNode(instanceRef.current).children;
     const defaultButton = buttons[0];
@@ -182,11 +188,10 @@ describe('Button styles', () => {
 
   it('Default button should render the correct styles when set active', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(
+    render(
       <Button ref={instanceRef} active>
         Title
-      </Button>,
-      createTestContainer()
+      </Button>
     );
     assert.equal(
       getStyle(getDOMNode(instanceRef.current), 'backgroundColor'),
@@ -195,18 +200,17 @@ describe('Button styles', () => {
     );
     assert.equal(
       getStyle(getDOMNode(instanceRef.current), 'color'),
-      toRGB('#575757'),
+      toRGB('#272c36'),
       'Default button font-color'
     );
   });
 
   it('Primary button should render the correct styles when set active', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(
+    render(
       <Button appearance="primary" ref={instanceRef} active>
         Title
-      </Button>,
-      createTestContainer()
+      </Button>
     );
     assert.equal(
       getStyle(getDOMNode(instanceRef.current), 'backgroundColor'),
@@ -222,22 +226,20 @@ describe('Button styles', () => {
 
   it('Link button should render the correct font color when set active', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(
+    render(
       <Button appearance="link" ref={instanceRef} active>
         Title
-      </Button>,
-      createTestContainer()
+      </Button>
     );
     assert.equal(getStyle(getDOMNode(instanceRef.current), 'color'), H900);
   });
 
   it('Subtle button should render the correct styles when set active', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(
+    render(
       <Button appearance="subtle" ref={instanceRef} active>
         Title
-      </Button>,
-      createTestContainer()
+      </Button>
     );
     assert.equal(
       getStyle(getDOMNode(instanceRef.current), 'color'),
@@ -253,11 +255,10 @@ describe('Button styles', () => {
 
   it('Ghost button should render the correct styles when set active', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(
+    render(
       <Button appearance="ghost" ref={instanceRef} active>
         Title
-      </Button>,
-      createTestContainer()
+      </Button>
     );
     assert.equal(getStyle(getDOMNode(instanceRef.current), 'color'), H900);
   });

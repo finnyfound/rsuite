@@ -1,83 +1,109 @@
-import * as React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import _ from 'lodash';
-import classNames from 'classnames';
-import { defaultProps, getUnhandledProps, prefix, createContext } from '../utils';
-import { RadioGroupProps, RadioContextProps } from './RadioGroup.d';
+import { useClassNames, useControlled } from '../utils';
+import { WithAsProps, FormControlBaseProps, RsRefForwardingComponent } from '../@types/common';
+import { ValueType } from '../Radio';
+import Plaintext from '../Plaintext';
 
-interface RadioGroupState {
-  value: any;
+export interface RadioContextProps {
+  inline?: boolean;
+  name?: string;
+  value?: ValueType | null;
+  controlled?: boolean;
+  disabled?: boolean;
+  readOnly?: boolean;
+  plaintext?: boolean;
+  onChange?: (value: ValueType | undefined, event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-export const RadioContext = createContext<RadioContextProps>({});
+export interface RadioGroupProps<T = ValueType> extends WithAsProps, FormControlBaseProps<T> {
+  /** A radio group can have different appearances */
+  appearance?: 'default' | 'picker';
 
-class RadioGroup extends React.Component<RadioGroupProps, RadioGroupState> {
-  static propTypes = {
-    appearance: PropTypes.oneOf(['default', 'picker']),
-    name: PropTypes.string,
-    inline: PropTypes.bool,
-    value: PropTypes.any,
-    defaultValue: PropTypes.any,
-    className: PropTypes.string,
-    classPrefix: PropTypes.string,
-    children: PropTypes.node,
-    onChange: PropTypes.func
-  };
-  static defaultProps = {
-    appearance: 'default'
-  };
-  constructor(props) {
-    super(props);
-    this.state = {
-      value: props.defaultValue
-    };
-  }
+  /** Name to use for form */
+  name?: string;
 
-  getValue() {
-    const { value } = this.props;
-    return _.isUndefined(value) ? this.state.value : value;
-  }
+  /** Inline layout */
+  inline?: boolean;
 
-  handleChange = (
-    nextValue: any,
-    _itemChecked: boolean,
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    this.setState({ value: nextValue });
-    this.props.onChange?.(nextValue, event);
-  };
+  /** Primary content */
+  children?: React.ReactNode;
+}
 
-  getContextProps = (): RadioContextProps => {
-    const { inline, name } = this.props;
-    const value = this.getValue();
+export const RadioContext = React.createContext<RadioContextProps>({});
 
-    return {
+const RadioGroup: RsRefForwardingComponent<'div', RadioGroupProps> = React.forwardRef(
+  (props: RadioGroupProps, ref) => {
+    const {
+      as: Component = 'div',
+      className,
       inline,
+      children,
+      classPrefix = 'radio-group',
+      value: valueProp,
+      defaultValue,
+      appearance = 'default',
       name,
-      value: _.isUndefined(value) ? null : value,
-      onChange: this.handleChange
-    };
-  };
+      plaintext,
+      disabled,
+      readOnly,
+      onChange,
+      ...rest
+    } = props;
+    const { merge, withClassPrefix } = useClassNames(classPrefix);
+    const classes = merge(className, withClassPrefix(appearance, { inline }));
+    const [value, setValue, isControlled] = useControlled(valueProp, defaultValue);
 
-  render() {
-    const { className, inline, children, classPrefix, appearance, ...rest } = this.props;
-    const addPrefix = prefix(classPrefix);
-    const classes = classNames(classPrefix, addPrefix(appearance), className, {
-      [addPrefix('inline')]: inline
-    });
+    const handleChange = useCallback(
+      (nextValue: ValueType | undefined, event: React.ChangeEvent<HTMLInputElement>) => {
+        setValue(nextValue);
+        onChange?.(nextValue ?? '', event);
+      },
+      [onChange, setValue]
+    );
 
-    const unhandled = getUnhandledProps(RadioGroup, rest);
+    const contextValue = useMemo(
+      () => ({
+        inline,
+        name,
+        value: typeof value === 'undefined' ? null : value,
+        controlled: isControlled,
+        plaintext,
+        disabled,
+        readOnly,
+        onChange: handleChange
+      }),
+      [disabled, handleChange, inline, isControlled, name, plaintext, readOnly, value]
+    );
 
     return (
-      <RadioContext.Provider value={this.getContextProps()}>
-        <div {...unhandled} className={classes} role="button">
-          {children}
-        </div>
+      <RadioContext.Provider value={contextValue}>
+        {plaintext ? (
+          <Plaintext ref={ref} localeKey="notSelected" {...rest}>
+            {value ? children : null}
+          </Plaintext>
+        ) : (
+          <Component role="radiogroup" {...rest} ref={ref} className={classes}>
+            {children}
+          </Component>
+        )}
       </RadioContext.Provider>
     );
   }
-}
+);
 
-export default defaultProps<RadioGroupProps>({
-  classPrefix: 'radio-group'
-})(RadioGroup);
+RadioGroup.displayName = 'RadioGroup';
+RadioGroup.propTypes = {
+  appearance: PropTypes.oneOf(['default', 'picker']),
+  name: PropTypes.string,
+  inline: PropTypes.bool,
+  value: PropTypes.any,
+  defaultValue: PropTypes.any,
+  className: PropTypes.string,
+  classPrefix: PropTypes.string,
+  children: PropTypes.node,
+  onChange: PropTypes.func,
+  plaintext: PropTypes.bool
+};
+
+export default RadioGroup;

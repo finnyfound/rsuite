@@ -10,7 +10,7 @@ describe('picker - DropdownMenuCheckItem', () => {
     const instance = getDOMNode(<DropdownMenuItem title="title">{Title}</DropdownMenuItem>);
 
     assert.equal(instance.tagName, 'DIV');
-    assert.equal(instance.innerText, Title);
+    assert.equal(instance.textContent, Title);
   });
 
   it('Should be active', () => {
@@ -69,6 +69,11 @@ describe('picker - DropdownMenuCheckItem', () => {
     const instance = getDOMNode(<DropdownMenuItem title="title" onSelectItem={doneOp} />);
 
     ReactTestUtils.Simulate.click(instance.querySelector('.rs-checkbox'));
+  });
+
+  it('Should have a role', () => {
+    const instance = getDOMNode(<DropdownMenuItem>item</DropdownMenuItem>);
+    assert.equal(instance.getAttribute('role'), 'option');
   });
 
   it('Should have a custom className', () => {

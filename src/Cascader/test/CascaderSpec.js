@@ -1,4 +1,5 @@
 import React from 'react';
+import { render } from '@testing-library/react';
 import ReactTestUtils from 'react-dom/test-utils';
 import Cascader from '../Cascader';
 import Button from '../../Button';
@@ -30,11 +31,17 @@ const items = [
 ];
 
 describe('Cascader', () => {
-  it('Should output a dropdown', () => {
+  it('Should output a picker', () => {
     const Title = 'Title';
     const instance = getDOMNode(<Cascader>{Title}</Cascader>);
 
     assert.ok(instance.className.match(/\bpicker-cascader\b/));
+  });
+
+  it('Should have "default" appearance by default', () => {
+    const instance = getDOMNode(<Cascader />);
+
+    expect(instance).to.have.class('rs-picker-default');
   });
 
   it('Should be disabled', () => {
@@ -44,22 +51,21 @@ describe('Cascader', () => {
   });
 
   it('Should be inline', () => {
-    const instance = getDOMNode(<Cascader inline />);
-
-    assert.ok(instance.className.match(/\brs-picker-inline\b/));
-    assert.ok(instance.querySelector('.rs-picker-cascader-menu-items'));
+    const instance = getInstance(<Cascader inline />);
+    assert.ok(instance.overlay.className.match(/\brs-picker-inline\b/));
+    assert.ok(instance.overlay.querySelector('.rs-picker-cascader-menu-items'));
   });
 
   it('Should output a placeholder', () => {
     const placeholder = 'foobar';
     const instance = getDOMNode(<Cascader placeholder={placeholder} />);
 
-    assert.equal(instance.querySelector('.rs-picker-toggle-placeholder').innerText, placeholder);
+    assert.equal(instance.querySelector('.rs-picker-toggle-placeholder').textContent, placeholder);
   });
 
   it('Should output a button', () => {
-    const instance = getInstance(<Cascader toggleComponentClass="button" />);
-    assert.ok(ReactTestUtils.findRenderedDOMComponentWithTag(instance, 'button'));
+    const instance = getInstance(<Cascader toggleAs="button" />);
+    assert.ok(instance.root.querySelector('button'));
   });
 
   it('Should be block', () => {
@@ -84,71 +90,88 @@ describe('Cascader', () => {
     // Invalid value
     const instance3 = getDOMNode(<Cascader renderValue={v => [v, placeholder]} value={''} />);
 
-    assert.equal(instance.querySelector('.rs-picker-toggle-value').innerText, `1${placeholder}`);
-    assert.equal(instance2.querySelector('.rs-picker-toggle-value').innerText, `2${placeholder}`);
-    assert.equal(instance3.querySelector('.rs-picker-toggle-value').innerText, placeholder);
+    assert.equal(instance.querySelector('.rs-picker-toggle-value').textContent, `1${placeholder}`);
+    assert.equal(instance2.querySelector('.rs-picker-toggle-value').textContent, `2${placeholder}`);
+    assert.equal(instance3.querySelector('.rs-picker-toggle-value').textContent, placeholder);
   });
 
   it('Should not be call renderValue()', () => {
     const instance = getDOMNode(<Cascader renderValue={() => 'value'} />);
-    assert.equal(instance.querySelector('.rs-picker-toggle-placeholder').innerText, 'Select');
+    assert.equal(instance.querySelector('.rs-picker-toggle-placeholder').textContent, 'Select');
   });
 
   it('Should render a placeholder when value error', () => {
     const instance = getDOMNode(<Cascader value={2} placeholder={'test'} />);
-    assert.equal(instance.querySelector('.rs-picker-toggle-placeholder').innerText, 'test');
+    assert.equal(instance.querySelector('.rs-picker-toggle-placeholder').textContent, 'test');
   });
 
   it('Should be active by value', () => {
     const value = '2';
     const instance = getInstance(<Cascader defaultOpen data={items} value={value} />);
-    const menu = getDOMNode(instance.menuContainerRef.current);
-    assert.equal(menu.querySelector('.rs-picker-cascader-menu-item-active').innerText, value);
+
+    assert.equal(
+      instance.overlay.querySelector('.rs-picker-cascader-menu-item-active').textContent,
+      value
+    );
   });
 
   it('Should be active by defaultValue', () => {
     const value = '2';
     const instance = getInstance(<Cascader defaultOpen data={items} defaultValue={value} />);
-    const menu = getDOMNode(instance.menuContainerRef.current);
-    assert.equal(menu.querySelector('.rs-picker-cascader-menu-item-active').innerText, value);
+
+    assert.equal(
+      instance.overlay.querySelector('.rs-picker-cascader-menu-item-active').textContent,
+      value
+    );
   });
 
-  it('Should call onSelect callback ', done => {
+  it('Should call onSelect callback with correct node value', done => {
     const doneOp = node => {
-      if (node.value === '2') {
+      try {
+        assert.equal(node.value, '2');
         done();
+      } catch (err) {
+        done(err);
       }
     };
-
     const instance = getInstance(<Cascader data={items} defaultOpen onSelect={doneOp} />);
-    const menu = getDOMNode(instance.menuContainerRef.current);
-    ReactTestUtils.Simulate.click(menu.querySelectorAll('.rs-picker-cascader-menu-item')[1]);
+    ReactTestUtils.Simulate.click(
+      instance.overlay.querySelectorAll('.rs-picker-cascader-menu-item')[1]
+    );
   });
 
-  it('Should call onChange callback ', done => {
+  it('Should call onChange callback with correct value', done => {
     const doneOp = value => {
-      if (value === '2') {
+      try {
+        assert.equal(value, '2');
         done();
+      } catch (err) {
+        done(err);
       }
     };
 
     const instance = getInstance(<Cascader data={items} defaultOpen onChange={doneOp} />);
-    const menu = getDOMNode(instance.menuContainerRef.current);
-    ReactTestUtils.Simulate.click(menu.querySelectorAll('.rs-picker-cascader-menu-item')[1]);
+    ReactTestUtils.Simulate.click(
+      instance.overlay.querySelectorAll('.rs-picker-cascader-menu-item')[1]
+    );
   });
 
   it('Should call onChange callback by `parentSelectable`', done => {
     const doneOp = value => {
-      if (value === '3') {
+      try {
+        assert.equal(value, '3');
         done();
+      } catch (err) {
+        done(err);
       }
     };
 
     const instance = getInstance(
       <Cascader data={items} defaultOpen parentSelectable onChange={doneOp} />
     );
-    const menu = getDOMNode(instance.menuContainerRef.current);
-    ReactTestUtils.Simulate.click(menu.querySelectorAll('.rs-picker-cascader-menu-item')[2]);
+    ReactTestUtils.Simulate.click(
+      instance.overlay.querySelectorAll('.rs-picker-cascader-menu-item')[2]
+    );
   });
 
   it('Should call onClean callback', done => {
@@ -180,7 +203,7 @@ describe('Cascader', () => {
     const instance = getDOMNode(<Cascader defaultOpen data={items} defaultValue={'3-1'} />);
 
     ReactTestUtils.Simulate.click(instance.querySelector('.rs-picker-toggle-clean'));
-    expect(instance.querySelector('.rs-picker-toggle-placeholder').innerText).to.equal('Select');
+    expect(instance.querySelector('.rs-picker-toggle-placeholder').textContent).to.equal('Select');
   });
 
   it('Should have a custom className', () => {
@@ -199,8 +222,260 @@ describe('Cascader', () => {
     assert.ok(instance.className.match(/\bcustom-prefix\b/));
   });
 
-  it('Should render a button by toggleComponentClass={Button}', () => {
-    const instance = getInstance(<Cascader open data={items} toggleComponentClass={Button} />);
-    ReactTestUtils.findRenderedDOMComponentWithClass(instance, 'rs-btn');
+  it('Should render a button by toggleAs={Button}', () => {
+    const instance = getInstance(<Cascader data={items} toggleAs={Button} />);
+    assert.ok(instance.root.querySelector('.rs-btn'));
+  });
+
+  it('Should children be loaded lazily', () => {
+    const instance = getInstance(
+      <Cascader
+        open
+        data={[{ label: '1', value: '1', children: [] }]}
+        getChildren={() => {
+          return [{ label: '2', value: '2' }];
+        }}
+      />
+    );
+
+    ReactTestUtils.Simulate.click(
+      instance.overlay.querySelector(
+        '.rs-picker-cascader-menu-has-children .rs-picker-cascader-menu-item'
+      )
+    );
+
+    assert.equal(
+      instance.overlay.querySelectorAll('.rs-picker-cascader-menu-item')[1].textContent,
+      '2'
+    );
+  });
+
+  it('Should present an asyn loading state', () => {
+    function fetchNodes() {
+      return new Promise(resolve => {
+        setTimeout(() => {
+          resolve([{ label: '2', value: '2' }]);
+        }, 500);
+      });
+    }
+
+    const instance = getInstance(
+      <Cascader open data={[{ label: '1', value: '1', children: [] }]} getChildren={fetchNodes} />
+    );
+
+    ReactTestUtils.Simulate.click(
+      instance.overlay.querySelector(
+        '.rs-picker-cascader-menu-has-children .rs-picker-cascader-menu-item'
+      )
+    );
+    assert.ok(instance.overlay.querySelector('.rs-icon.rs-icon-spin'));
+  });
+
+  it('Should call renderValue', () => {
+    const instance1 = getDOMNode(<Cascader value="Test" renderValue={() => '1'} />);
+    const instance2 = getDOMNode(<Cascader value="Test" renderValue={() => null} />);
+    const instance3 = getDOMNode(<Cascader value="Test" renderValue={() => undefined} />);
+
+    assert.equal(instance1.querySelector('.rs-picker-toggle-value').textContent, '1');
+    assert.equal(instance2.querySelector('.rs-picker-toggle-placeholder').textContent, 'Select');
+    assert.equal(instance3.querySelector('.rs-picker-toggle-placeholder').textContent, 'Select');
+
+    assert.include(instance1.className, 'rs-picker-has-value');
+    assert.notInclude(instance2.className, 'rs-picker-has-value');
+    assert.notInclude(instance3.className, 'rs-picker-has-value');
+  });
+
+  it('Should update path', () => {
+    const TestApp = React.forwardRef((props, ref) => {
+      const [value, setValue] = React.useState('2');
+      const pickerRef = React.useRef();
+      React.useImperativeHandle(ref, () => ({
+        picker: pickerRef.current,
+        setValue
+      }));
+
+      return <Cascader {...props} ref={pickerRef} defaultOpen data={items} value={value} open />;
+    });
+
+    TestApp.displayName = 'TestApp';
+
+    const ref = React.createRef();
+    render(<TestApp ref={ref} />);
+
+    assert.equal(ref.current.picker.root.querySelector('.rs-picker-toggle-value').textContent, '2');
+    assert.equal(
+      ref.current.picker.overlay.querySelector('.rs-picker-cascader-menu-item-active').textContent,
+      '2'
+    );
+
+    ReactTestUtils.act(() => {
+      ref.current.setValue(null);
+    });
+
+    assert.equal(
+      ref.current.picker.root.querySelector('.rs-picker-toggle-placeholder').textContent,
+      'Select'
+    );
+  });
+
+  it('Should update columns', () => {
+    const TestApp = React.forwardRef((props, ref) => {
+      const [data, setData] = React.useState([]);
+      const pickerRef = React.useRef();
+      React.useImperativeHandle(ref, () => ({
+        picker: pickerRef.current,
+        setData
+      }));
+
+      return <Cascader {...props} ref={pickerRef} data={data} open />;
+    });
+
+    TestApp.displayName = 'TestApp';
+
+    const ref = React.createRef();
+    render(<TestApp ref={ref} />);
+
+    assert.equal(
+      ref.current.picker.overlay.querySelectorAll('.rs-picker-cascader-menu-item').length,
+      0
+    );
+
+    ReactTestUtils.act(() => {
+      ref.current.setData([{ label: 'test', value: 1 }]);
+    });
+
+    assert.equal(
+      ref.current.picker.overlay.querySelectorAll('.rs-picker-cascader-menu-item').length,
+      1
+    );
+    assert.equal(
+      ref.current.picker.overlay.querySelector('.rs-picker-cascader-menu-item').textContent,
+      'test'
+    );
+  });
+
+  it('Should show search items with childrenKey', () => {
+    const itemsWithChildrenKey = {
+      childrenKey: 'sub',
+      data: [
+        {
+          value: 't',
+          label: 't'
+        },
+        {
+          value: 'h',
+          label: 'h'
+        },
+        {
+          value: 'g',
+          label: 'g',
+          sub: [
+            {
+              value: 'g-m',
+              label: 'g-m'
+            },
+            {
+              value: 'g-b',
+              label: 'g-b'
+            }
+          ]
+        }
+      ]
+    };
+
+    const cascaderRef = React.createRef();
+
+    render(
+      <Cascader
+        ref={cascaderRef}
+        defaultOpen
+        data={itemsWithChildrenKey.data}
+        childrenKey={itemsWithChildrenKey.childrenKey}
+      />
+    );
+
+    ReactTestUtils.act(() => {
+      const input = cascaderRef.current.overlay.querySelector('.rs-picker-search-bar-input');
+
+      ReactTestUtils.Simulate.focus(input);
+
+      input.value = 'g';
+      ReactTestUtils.Simulate.change(input);
+    });
+
+    ReactTestUtils.act(() => {
+      const searchResult = cascaderRef.current.overlay.querySelectorAll('.rs-picker-cascader-row');
+
+      assert.equal(searchResult.length, 2);
+    });
+  });
+
+  describe('ref testing', () => {
+    it('Should call onOpen', done => {
+      const doneOp = () => {
+        done();
+      };
+
+      const instance = getInstance(<Cascader onOpen={doneOp} data={items} />);
+      instance.open();
+    });
+
+    it('Should call onClose', done => {
+      const doneOp = () => {
+        done();
+      };
+
+      const instance = getInstance(<Cascader onClose={doneOp} data={items} />);
+      instance.open();
+      instance.close();
+    });
+  });
+
+  it('Should update columns', () => {
+    const TestApp = React.forwardRef((props, ref) => {
+      const [data, setData] = React.useState([]);
+      const pickerRef = React.useRef();
+      React.useImperativeHandle(ref, () => ({
+        setData,
+        picker: pickerRef.current
+      }));
+
+      return <Cascader {...props} ref={pickerRef} data={data} open />;
+    });
+    const ref = React.createRef();
+    render(<TestApp ref={ref} />);
+
+    const overlay = ref.current.picker.overlay;
+
+    assert.equal(overlay.querySelectorAll('.rs-picker-cascader-menu-item').length, 0);
+
+    ReactTestUtils.act(() => {
+      ref.current.setData([{ label: 'test', value: 1 }]);
+    });
+
+    assert.equal(overlay.querySelectorAll('.rs-picker-cascader-menu-item').length, 1);
+    assert.equal(overlay.querySelector('.rs-picker-cascader-menu-item').textContent, 'test');
+  });
+
+  describe('Plain text', () => {
+    it('Should render full path (separated by delimiter) of selected data', () => {
+      const { getByTestId } = render(
+        <div data-testid="content">
+          <Cascader data={items} value="3-1" plaintext />
+        </div>
+      );
+
+      expect(getByTestId('content')).to.have.text('3 / 3-1');
+    });
+
+    it('Should render "Not selected" if value is empty', () => {
+      const { getByTestId } = render(
+        <div data-testid="content">
+          <Cascader data={items} value={null} plaintext />
+        </div>
+      );
+
+      expect(getByTestId('content')).to.have.text('Not selected');
+    });
   });
 });

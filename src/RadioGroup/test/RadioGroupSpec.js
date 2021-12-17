@@ -1,6 +1,7 @@
 import React from 'react';
+import { render } from '@testing-library/react';
 import ReactTestUtils from 'react-dom/test-utils';
-import { getDOMNode, getInstance } from '@test/testUtils';
+import { getDOMNode } from '@test/testUtils';
 
 import RadioGroup from '../RadioGroup';
 import Radio from '../../Radio';
@@ -75,12 +76,15 @@ describe('RadioGroup', () => {
     assert.ok(radios[1].className.match(/\bradio-checked\b/));
   });
 
-  it('Should call onChange callback', done => {
+  it('Should call onChange callback with correct value', done => {
     const instance = getDOMNode(
       <RadioGroup
         onChange={value => {
-          if (value === 3) {
+          try {
+            assert.equal(value, 3);
             done();
+          } catch (err) {
+            done(err);
           }
         }}
       >
@@ -120,13 +124,16 @@ describe('RadioGroup', () => {
     ReactTestUtils.Simulate.change(radios[2].querySelector('input'));
   });
 
-  it('Should call onChange callback and return correct parameters', done => {
+  it('Should call onChange callback with correct event target', done => {
     const instance = getDOMNode(
       <RadioGroup
         name="test"
         onChange={(value, event) => {
-          if (value === 3 && event.target.name === 'test') {
+          try {
+            assert.equal(event.target.name, 'test');
             done();
+          } catch (err) {
+            done(err);
           }
         }}
       >
@@ -148,7 +155,7 @@ describe('RadioGroup', () => {
         <Radio value={false}>false</Radio>
       </RadioGroup>
     );
-    assert.equal(instance.querySelector('.rs-radio-checked').innerText, 'false');
+    assert.equal(instance.querySelector('.rs-radio-checked').textContent, 'false');
   });
 
   it('Should have a custom className', () => {
@@ -168,8 +175,35 @@ describe('RadioGroup', () => {
   });
 
   it('Should apply appearance', () => {
-    const instance = getInstance(<RadioGroup appearance="picker" />);
+    const instance = getDOMNode(<RadioGroup appearance="picker" />);
 
-    ReactTestUtils.findRenderedDOMComponentWithClass(instance, 'rs-radio-group-picker');
+    assert.include(instance.className, 'rs-radio-group-picker');
+  });
+
+  describe('Plain text', () => {
+    it("Should render selected radio's label", () => {
+      const { getByTestId } = render(
+        <RadioGroup plaintext value={2} data-testid="radio-group">
+          <Radio value={1}>Choice 1</Radio>
+          <Radio value={2}>Choice 2</Radio>
+          <Radio value={3}>Choice 3</Radio>
+          <Radio value={4}>Choice 4</Radio>
+        </RadioGroup>
+      );
+
+      expect(getByTestId('radio-group')).to.have.text('Choice 2');
+    });
+    it('Should render "not selected" if none is selected', () => {
+      const { getByTestId } = render(
+        <RadioGroup plaintext data-testid="radio-group">
+          <Radio value={1}>Choice 1</Radio>
+          <Radio value={2}>Choice 2</Radio>
+          <Radio value={3}>Choice 3</Radio>
+          <Radio value={4}>Choice 4</Radio>
+        </RadioGroup>
+      );
+
+      expect(getByTestId('radio-group')).to.have.text('Not selected');
+    });
   });
 });

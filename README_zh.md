@@ -6,7 +6,11 @@
   </a>
 </p>
 
-[![npm][npm-svg]][npm-home] [![Travis][travis-svg]][travis-home] [![Coverage Status][coverage-svg]][travis-home] [![Discord][discord-svg]][discord-invite] [![Gitter][gitter-svg]][gitter] [![Gitter][gitter-cn-svg]][gitter-cn]
+[![npm][npm-svg]][npm-home]
+[![codecov](https://codecov.io/gh/rsuite/rsuite/branch/next/graph/badge.svg?token=HGeKd0BD3t)](https://codecov.io/gh/rsuite/rsuite)
+[![Discord][discord-svg]][discord-invite]
+[![Gitter][gitter-svg]][gitter]
+[![Gitter][gitter-cn-svg]][gitter-cn]
 
 React Suite 是一套 React 组件库，为后台产品而生。同时也是一个具有贴心设计以及对开发者友好的 UI 框架。
 
@@ -18,11 +22,11 @@ React Suite 设计原型与规范， [点击查看][rsuite-design]。
 
 ### 浏览器
 
-React Suite 支持最新的，稳定版的全部主流浏览器和平台。 从 React Suite 3 开始不支持 IE9 以下版本(包括 IE9)。不推荐在移动端使用。
+React Suite 支持最新的，稳定版的全部主流浏览器和平台。 从 React Suite 5 开始不支持 IE10 以下版本(包括 IE10)。不推荐在移动端使用。
 
 | IE   | Edge | Firefox | Chrome | Safari |
 | ---- | ---- | ------- | ------ | ------ |
-| >=10 | >=14 | >= 45   | >= 49  | >= 10  |
+| >=11 | >=14 | >= 45   | >= 49  | >= 10  |
 
 ### 服务端
 
@@ -48,7 +52,7 @@ npm i rsuite --save
 
 ```js
 import { Button } from 'rsuite';
-import 'rsuite/lib/styles/index.less'; // or 'rsuite/dist/styles/rsuite-default.css'
+import 'rsuite/styles/index.less'; // or 'rsuite/dist/rsuite.min.css'
 
 ReactDOM.render(<Button>Button</Button>, mountNode);
 ```
@@ -65,12 +69,8 @@ ReactDOM.render(<Button>Button</Button>, mountNode);
 - [Right-to-left][rsuite-doc-guide-intl]
 - [组件][rsuite-components-overview]
 
-**历史版本:**
-
-- [3.\* 版本](https://v3.rsuitejs.com/)
-- [2.\* 版本](https://v2.rsuitejs.com/)
-
-### 示例
+<details>
+<summary>更多的示例</summary>
 
 - [管理系统][demo-admin]
 - [模块化按需加载][demo-modular-import]
@@ -84,65 +84,31 @@ ReactDOM.render(<Button>Button</Button>, mountNode);
 - [在 Flow 中使用][demo-flow-app]
 - [在 TypeScript 中使用][demo-typescript-app]
 - [在 Next.js 中使用][demo-nextjs]
+- [在 Next.js 和 Typescript 中使用 ][demo-nextjs-typescript]
 - [在 UmiJS 中使用][demo-umi-app]
+- [在 Snowpack 中使用][demo-snowpack]
+- [在 Vite 中使用][demo-vite]
+</details>
+
+## 历史版本
+
+上个大版本 4.x 将不再添加新特性，
+我们推荐你升级到最新的 5.x 版本。
+4.x 的功能修复仍会在一段时间内提供支持，
+安全修复也会支持，直到 6.x 开始开发。
+
+### 历史版本的文档
+
+- [4.x 版本文档](https://v4.rsuitejs.com/)
+- [3.x 版本文档](https://v3.rsuitejs.com/)
 
 ## 更新日志
 
 每一个版本的详细变化记录在[Release Notes][release-notes]
 
-## 开发
-
-您可以通过 [Projects](https://github.com/rsuite/rsuite/projects) 查看我们的开发计划，同时希望您能参与其中。
-
-### 测试驱动开发（TDD）
-
-1. Fork `https://github.com/rsuite/rsuite` 这个仓库。
-
-```bash
-$ git clone git@github.com:<YOUR NAME>/rsuite.git
-$ cd rsuite
-```
-
-2. 安装并运行
-
-```bash
-$ npm install
-$ npm run tdd
-```
-
-3. 运行单个组件
-
-```bash
-$ M=Button npm run tdd
-```
-
-### UI 驱动开发
-
-1. Fork `https://github.com/rsuite/rsuite` 这个仓库。
-
-```bash
-$ git clone git@github.com:<YOUR NAME>/rsuite.git
-```
-
-2. 安装并运行
-
-```bash
-$ cd rsuite
-$ npm install
-$ cd rsuite/docs
-$ npm install
-$ npm run dev
-```
-
-3. 您可以开始访问了， 在浏览器输入 http://127.0.0.1:3000/
-
-Gitee 用户访问地址: https://gitee.com/rsuite/rsuite
-
 ## 贡献
 
 在开始之前，确保您已读[贡献指南][contributing]。
-
-编辑器的配置参考 [.prettierrc][prettierrc]， 下载编辑的插件 https://prettier.io/
 
 ## 支持 React Suite
 
@@ -167,16 +133,12 @@ Gitee 用户访问地址: https://gitee.com/rsuite/rsuite
 React Suite 基于 [MIT licensed][license] 发布。
 
 [readm-en]: https://github.com/rsuite/rsuite/blob/master/README.md
-[npm-svg]: https://badge.fury.io/js/rsuite.svg
+[npm-svg]: https://img.shields.io/npm/v/rsuite
 [npm-home]: https://www.npmjs.com/package/rsuite
-[travis-svg]: https://travis-ci.org/rsuite/rsuite.svg?branch=master
-[travis-home]: https://travis-ci.org/rsuite/rsuite
-[coverage-svg]: https://coveralls.io/repos/github/rsuite/rsuite/badge.svg?branch=master
-[travis-home]: https://coveralls.io/github/rsuite/rsuite?branch=master
 [discord-svg]: https://img.shields.io/badge/Discord-Join%20chat%20%E2%86%92-738bd7.svg
 [discord-invite]: https://discord.gg/R8mnjwh
 [rsuite-design]: https://rsuitejs.com/design/default
-[live-preview-on-codesandbox]: https://codesandbox.io/s/mo7jxvr9x9?from-embed
+[live-preview-on-codesandbox]: https://codesandbox.io/s/rsuite-template-5vq6zo2z5l
 [rsuite-doc-guide]: https://rsuitejs.com/guide/introduction
 [rsuite-doc-guide-themes]: https://rsuitejs.com/guide/themes
 [rsuite-doc-guide-intl]: https://rsuitejs.com/guide/intl
@@ -206,3 +168,6 @@ React Suite 基于 [MIT licensed][license] 发布。
 [demo-umi-app]: https://github.com/rsuite/rsuite/tree/master/examples/with-umi
 [demo-rtlcss]: https://github.com/rsuite/rsuite/tree/master/examples/with-rtlcss
 [demo-postcss-rtl]: https://github.com/rsuite/rsuite/tree/master/examples/with-postcss-rtl
+[demo-nextjs-typescript]: https://github.com/rsuite/rsuite/tree/master/examples/with-nextjs-typescript
+[demo-snowpack]: https://github.com/rsuite/rsuite/tree/master/examples/with-snowpack
+[demo-vite]: https://github.com/rsuite/rsuite/tree/master/examples/with-vite

@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactTestUtils from 'react-dom/test-utils';
+import { render } from '@testing-library/react';
 import Checkbox from '../Checkbox';
 import { getDOMNode } from '@test/testUtils';
 
@@ -39,6 +40,7 @@ describe('Checkbox', () => {
   it('Should have a `Test` value', () => {
     const value = 'Test';
     const instance = getDOMNode(<Checkbox defaultValue={value}>Test</Checkbox>);
+
     assert.equal(instance.querySelector('input').value, value);
   });
 
@@ -48,11 +50,14 @@ describe('Checkbox', () => {
     assert.equal(input.tagName, 'INPUT');
   });
 
-  it('Should call onChange callback', done => {
+  it('Should call onChange callback with correct value', done => {
     const value = 'Test';
     const doneOp = data => {
-      if (data === value) {
+      try {
+        assert.equal(data, value);
         done();
+      } catch (err) {
+        done(err);
       }
     };
 
@@ -90,8 +95,11 @@ describe('Checkbox', () => {
 
   it('Should be checked with change', done => {
     const doneOp = (value, checked) => {
-      if (checked) {
+      try {
+        assert.isTrue(checked);
         done();
+      } catch (err) {
+        done(err);
       }
     };
 
@@ -101,9 +109,12 @@ describe('Checkbox', () => {
   });
 
   it('Should be unchecked with change', done => {
-    const doneOp = checked => {
-      if (!checked) {
+    const doneOp = (value, checked) => {
+      try {
+        assert.isFalse(checked);
         done();
+      } catch (err) {
+        done(err);
       }
     };
 
@@ -130,5 +141,28 @@ describe('Checkbox', () => {
   it('Should have a custom className prefix', () => {
     const instance = getDOMNode(<Checkbox classPrefix="custom-prefix" />);
     assert.ok(instance.className.match(/\bcustom-prefix\b/));
+  });
+
+  describe('Plain text', () => {
+    it('Should render its label if checked', () => {
+      const label = 'Check me';
+
+      const { getByTestId } = render(
+        <Checkbox checked plaintext data-testid="checkbox">
+          {label}
+        </Checkbox>
+      );
+
+      expect(getByTestId('checkbox')).to.have.text(label);
+    });
+    it('Should render nothing if unchecked', () => {
+      const { queryByTestId } = render(
+        <Checkbox checked={false} plaintext data-testid="checkbox">
+          Check me
+        </Checkbox>
+      );
+
+      expect(queryByTestId('checkbox')).not.to.exist;
+    });
   });
 });

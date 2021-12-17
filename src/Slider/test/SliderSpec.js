@@ -1,5 +1,7 @@
 import React from 'react';
-import { innerText, getDOMNode } from '@test/testUtils';
+import { render } from '@testing-library/react';
+import ReactTestUtils from 'react-dom/test-utils';
+import { getDOMNode } from '@test/testUtils';
 import Slider from '../Slider';
 
 describe('Slider', () => {
@@ -22,12 +24,13 @@ describe('Slider', () => {
 
   it('Should be displayed vertically', () => {
     const instance = getDOMNode(<Slider vertical />);
-    assert.ok(instance.className.match(/\brs-slider-vertical\b/));
+    assert.include(instance.className, 'rs-slider-vertical');
+    assert.equal(instance.querySelector('input').getAttribute('aria-orientation'), 'vertical');
   });
 
   it('Should be disabled', () => {
     const instance = getDOMNode(<Slider disabled />);
-    assert.ok(instance.className.match(/\brs-slider-disabled\b/));
+    assert.include(instance.className, 'rs-slider-disabled');
   });
 
   it('Should custom render mark', () => {
@@ -44,14 +47,14 @@ describe('Slider', () => {
     );
 
     const marks = instance.querySelectorAll('.rs-slider-mark-content');
-    assert.equal(marks[0].innerText, 'Single');
-    assert.equal(marks[1].innerText, 1);
-    assert.equal(marks[2].innerText, 2);
+    assert.equal(marks[0].textContent, 'Single');
+    assert.equal(marks[1].textContent, 1);
+    assert.equal(marks[2].textContent, 2);
   });
 
   it('Should render custom title', () => {
     const instance = getDOMNode(<Slider tooltip={false} handleTitle={'test'} />);
-    assert.equal(innerText(instance), 'test');
+    assert.equal(instance.textContent, 'test');
   });
 
   it('Should have a custom className', () => {
@@ -67,6 +70,83 @@ describe('Slider', () => {
 
   it('Should have a custom className prefix', () => {
     const instance = getDOMNode(<Slider classPrefix="custom-prefix" />);
-    assert.ok(instance.className.match(/\bcustom-prefix\b/));
+    assert.include(instance.className, 'custom-prefix');
+  });
+
+  it('Should handle keyboard operations', () => {
+    const instance = getDOMNode(<Slider defaultValue={10} />);
+    const handle = instance.querySelector('.rs-slider-handle');
+    const input = instance.querySelector('input[type="range"]');
+    assert.equal(input.value, '10');
+
+    ReactTestUtils.Simulate.keyDown(handle, { key: 'ArrowUp' });
+    assert.equal(input.value, '11');
+
+    ReactTestUtils.Simulate.keyDown(handle, { key: 'ArrowRight' });
+    assert.equal(input.value, '12');
+
+    ReactTestUtils.Simulate.keyDown(handle, { key: 'ArrowDown' });
+    assert.equal(input.value, '11');
+
+    ReactTestUtils.Simulate.keyDown(handle, { key: 'ArrowLeft' });
+    assert.equal(input.value, '10');
+
+    ReactTestUtils.Simulate.keyDown(handle, { key: 'Home' });
+    assert.equal(input.value, '0');
+
+    ReactTestUtils.Simulate.keyDown(handle, { key: 'End' });
+    assert.equal(input.value, '100');
+  });
+
+  it('Should call `onChangeCommitted` callback', done => {
+    const mousemoveEvent = new MouseEvent('mousemove', { bubbles: true });
+    const mouseupEvent = new MouseEvent('mouseup', { bubbles: true });
+    const instance = getDOMNode(<Slider onChangeCommitted={() => done()} />);
+
+    const handle = instance.querySelector('.rs-slider-handle');
+    ReactTestUtils.Simulate.mouseDown(handle);
+    handle.dispatchEvent(mousemoveEvent);
+    handle.dispatchEvent(mouseupEvent);
+
+    assert.include(handle.className, 'active');
+  });
+
+  it('Should call `onChange` callback', done => {
+    const instance = getDOMNode(<Slider onChange={() => done()} />);
+    ReactTestUtils.Simulate.click(instance.querySelector('.rs-slider-bar'));
+  });
+
+  it('Should output an `input` stored value', () => {
+    const instance = getDOMNode(<Slider min={10} max={100} value={20} />);
+
+    const input = instance.querySelector('input[type="range"]');
+
+    assert.equal(input.value, 20);
+    assert.equal(input.getAttribute('aria-valuenow'), 20);
+    assert.equal(input.getAttribute('aria-valuemax'), 100);
+    assert.equal(input.getAttribute('aria-valuemin'), 10);
+    assert.equal(input.getAttribute('aria-orientation'), 'horizontal');
+  });
+
+  describe('Plain text', () => {
+    it('Should render input value', () => {
+      const { getByTestId } = render(
+        <div data-testid="content">
+          <Slider value={1} plaintext />
+        </div>
+      );
+
+      expect(getByTestId('content')).to.have.text('1');
+    });
+
+    it('Should render "Not selected" if value is empty', () => {
+      const { getByTestId } = render(
+        <div data-testid="content">
+          <Slider value={null} plaintext />
+        </div>
+      );
+
+      expect(getByTestId('content')).to.have.text('Not selected');
+    });
   });
 });

@@ -1,35 +1,44 @@
 .toggle-size-variant(@toogle-height,@min-width,@toggle-handle-gap,@toggle-inner-margin,@toggle-inner-font-size) {
-  @handle-diameter: @toogle-height - @toggle-handle-gap*2;
+  @handle-diameter: (@toogle-height - @toggle-handle-gap*2);
 
-  height: @toogle-height;
-  min-width: @min-width;
-  border-radius: @toogle-height / 2;
-
-  &::after {
+  .rs-toggle-loader {
     width: @handle-diameter;
     height: @handle-diameter;
     left: @toggle-handle-gap;
     top: @toggle-handle-gap;
-    border-radius: @handle-diameter / 2;
   }
 
-  &:active::after {
-    width: @handle-diameter * @toggle-active-scale;
+  .rs-toggle-presentation {
+    height: @toogle-height;
+    min-width: @min-width;
+    border-radius: (@toogle-height / 2);
   }
 
-  .@{ns}btn-toggle-inner {
+  .rs-toggle-presentation::after {
+    width: @handle-diameter;
+    height: @handle-diameter;
+    left: @toggle-handle-gap;
+    top: @toggle-handle-gap;
+    border-radius: (@handle-diameter / 2);
+  }
+
+  .rs-toggle-presentation:active::after {
+    width: (@handle-diameter * @toggle-active-scale);
+  }
+
+  .rs-toggle-inner {
     margin-left: @toogle-height;
     margin-right: @toggle-inner-margin;
     height: @toogle-height;
-    line-height: unit(@toogle-height / @toggle-inner-font-size);
+    line-height: unit((@toogle-height / @toggle-inner-font-size));
     font-size: @toggle-inner-font-size;
 
-    .@{ns}icon {
+    .rs-icon {
       font-size: @toggle-inner-font-size;
     }
   }
 
-  &.@{ns}btn-toggle-checked {
+  &.rs-toggle-checked .rs-toggle-presentation {
     &::after {
       left: 100%;
       margin-left: -(@handle-diameter + @toggle-handle-gap);
@@ -39,15 +48,20 @@
       margin-left: -(@handle-diameter * @toggle-active-scale + @toggle-handle-gap);
     }
 
-    .@{ns}btn-toggle-inner {
+    .rs-toggle-inner {
       margin-right: @toogle-height;
       margin-left: @toggle-inner-margin;
     }
   }
+
+  &.rs-toggle-checked .rs-toggle-loader {
+    left: 100%;
+    margin-left: -(@handle-diameter + @toggle-handle-gap);
+  }
 }
 
 // Small
-.btn-toggle(sm) {
+.toggle(sm) {
   .toggle-size-variant(
     @toggle-sm-height,
     @toggle-sm-min-width,
@@ -58,7 +72,7 @@
 }
 
 // Middle
-.btn-toggle(md) {
+.toggle(md) {
   .toggle-size-variant(
     @toggle-md-height,
     @toggle-md-min-width,
@@ -69,7 +83,7 @@
 }
 
 // Large
-.btn-toggle(lg) {
+.toggle(lg) {
   .toggle-size-variant(
     @toggle-lg-height,
     @toggle-lg-min-width,

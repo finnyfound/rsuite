@@ -1,73 +1,80 @@
-import * as React from 'react';
+import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import { prefix, defaultProps, getUnhandledProps } from '../utils';
-import { PlaceholderParagraphProps } from './PlaceholderParagraph.d';
+import { useClassNames } from '../utils';
+import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
 
-class PlaceholderParagraph extends React.Component<PlaceholderParagraphProps> {
-  static propTypes = {
-    className: PropTypes.string,
-    classPrefix: PropTypes.string,
-    rows: PropTypes.number,
-    rowHeight: PropTypes.number,
-    rowMargin: PropTypes.number,
-    graph: PropTypes.oneOfType([PropTypes.bool, PropTypes.oneOf(['circle', 'square', 'image'])]),
-    active: PropTypes.bool
-  };
-  static defaultProps = {
-    rows: 2,
-    rowHeight: 10,
-    rowMargin: 20
-  };
+export interface PlaceholderParagraphProps extends WithAsProps {
+  /* number of rows */
+  rows?: number;
 
-  render() {
-    const {
-      className,
-      rows,
-      rowHeight,
-      rowMargin,
-      graph,
-      active,
-      classPrefix,
-      ...rest
-    } = this.props;
+  /* height of rows */
+  rowHeight?: number;
 
-    const addPrefix = prefix(classPrefix);
-    const unhandled = getUnhandledProps(PlaceholderParagraph, rest);
-    const graphShape = graph === true ? 'square' : graph;
-    const rowArr = [];
+  /* margin of rows */
+  rowMargin?: number;
 
-    for (let i = 0; i < rows; i++) {
-      const styles = {
-        width: `${Math.random() * 75 + 25}%`,
-        height: rowHeight,
-        marginTop: i > 0 ? rowMargin : Number(rowMargin) / 2
-      };
-      rowArr.push(<p key={i} style={styles} />);
-    }
+  /* show graph */
+  graph?: boolean | 'circle' | 'square' | 'image';
 
-    const classes = classNames(className, classPrefix, addPrefix('paragraph'), {
-      [addPrefix('active')]: active
-    });
-
-    const graphClasses = classNames(
-      addPrefix('paragraph-graph'),
-      addPrefix(`paragraph-graph-${graphShape}`)
-    );
-
-    return (
-      <div className={classes} {...unhandled}>
-        {graphShape && (
-          <div className={graphClasses}>
-            <span className={addPrefix('paragraph-graph-inner')} />
-          </div>
-        )}
-        <div className={addPrefix('paragraph-rows')}>{rowArr}</div>
-      </div>
-    );
-  }
+  /** Placeholder status */
+  active?: boolean;
 }
 
-export default defaultProps({
-  classPrefix: 'placeholder'
-})(PlaceholderParagraph);
+const PlaceholderParagraph: RsRefForwardingComponent<'div', PlaceholderParagraphProps> =
+  React.forwardRef((props: PlaceholderParagraphProps, ref) => {
+    const {
+      as: Component = 'div',
+      className,
+      rows = 2,
+      rowHeight = 10,
+      rowMargin = 20,
+      graph,
+      active,
+      classPrefix = 'placeholder',
+      ...rest
+    } = props;
+
+    const { merge, prefix, withClassPrefix } = useClassNames(classPrefix);
+    const graphShape = graph === true ? 'square' : graph;
+
+    const rowElements = useMemo(() => {
+      const rowArr: React.ReactElement[] = [];
+
+      for (let i = 0; i < rows; i++) {
+        const styles = {
+          width: `${Math.random() * 75 + 25}%`,
+          height: rowHeight,
+          marginTop: i > 0 ? rowMargin : Number(rowMargin) / 2
+        };
+        rowArr.push(<p key={i} style={styles} />);
+      }
+      return rowArr;
+    }, [rowHeight, rowMargin, rows]);
+
+    const classes = merge(className, withClassPrefix('paragraph', { active }));
+    const graphClasses = prefix('paragraph-graph', `paragraph-graph-${graphShape}`);
+
+    return (
+      <Component {...rest} ref={ref} className={classes}>
+        {graphShape && (
+          <div className={graphClasses}>
+            <span className={prefix('paragraph-graph-inner')} />
+          </div>
+        )}
+        <div className={prefix('paragraph-rows')}>{rowElements}</div>
+      </Component>
+    );
+  });
+
+PlaceholderParagraph.displayName = 'PlaceholderParagraph';
+PlaceholderParagraph.propTypes = {
+  className: PropTypes.string,
+  classPrefix: PropTypes.string,
+  rows: PropTypes.number,
+  rowHeight: PropTypes.number,
+  rowMargin: PropTypes.number,
+  graph: PropTypes.oneOfType([PropTypes.bool, PropTypes.oneOf(['circle', 'square', 'image'])]),
+  active: PropTypes.bool
+};
+
+export default PlaceholderParagraph;

@@ -1,10 +1,30 @@
 import previewFile from '../previewFile';
 
 describe('[utils] previewFile', () => {
-  it('Should return base64 string', () => {
-    const file = new File(['First Line Text', 'Second Line Text'], 'test');
+  it('Should output image base64 string', done => {
+    const file = new File(['10'], 'image.png', {
+      type: 'image/png'
+    });
+
     previewFile(file, result => {
-      assert.equal(result, 'data:;base64,Rmlyc3QgTGluZSBUZXh0U2Vjb25kIExpbmUgVGV4dA==');
+      if (result === 'data:image/png;base64,MTA=') {
+        done();
+      }
+    });
+  });
+
+  it('Should output null if file is not an image', done => {
+    const file = new File(['10'], 'image.png', {
+      type: 'text/plain'
+    });
+
+    previewFile(file, result => {
+      try {
+        assert.isNull(result);
+        done();
+      } catch (err) {
+        done(err);
+      }
     });
   });
 });

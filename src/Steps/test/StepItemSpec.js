@@ -1,7 +1,8 @@
 import React from 'react';
-import { innerText, getDOMNode } from '@test/testUtils';
+import { render } from '@testing-library/react';
+import { getDOMNode } from '@test/testUtils';
 import StepItem from '../StepItem';
-import Icon from '../../Icon';
+import User from '@rsuite/icons/legacy/User';
 
 describe('StepItem', () => {
   it('Should render a StepItem', () => {
@@ -20,24 +21,34 @@ describe('StepItem', () => {
   });
 
   it('Should render custom icon', () => {
-    const instance = getDOMNode(<StepItem icon={<Icon icon="user" />} />);
+    const instance = getDOMNode(<StepItem icon={<User />} />);
     assert.ok(instance.className.match(/\brs-steps-item-custom\b/));
-    assert.ok(instance.querySelector('i.rs-icon-user'));
+    assert.isNotNull(instance.querySelector('[aria-label="user"]'));
   });
 
   it('Should output a number ', () => {
     const instance = getDOMNode(<StepItem stepNumber={10} />);
-    assert.equal(innerText(instance), '10');
+    assert.equal(instance.textContent, '10');
+  });
+
+  ['wait', 'process'].forEach(status => {
+    it(`Should render stepNumber when status is "${status}"`, () => {
+      const { getByTestId } = render(
+        <StepItem stepNumber={2} status={status} data-testid="item" />
+      );
+
+      expect(getByTestId('item')).to.have.text('2');
+    });
   });
 
   it('Should render description ', () => {
     const instance = getDOMNode(<StepItem description={'test'} />);
-    assert.equal(innerText(instance), 'test');
+    assert.equal(instance.textContent, 'test');
   });
 
   it('Should render title ', () => {
     const instance = getDOMNode(<StepItem title={'test'} />);
-    assert.equal(innerText(instance), 'test');
+    assert.equal(instance.textContent, 'test');
   });
 
   it('Should have a custom className', () => {

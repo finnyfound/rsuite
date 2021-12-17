@@ -1,5 +1,10 @@
-import * as DOMHelper from 'dom-lib';
+import * as helpers from 'dom-lib';
+import isElement from './isElement';
+export * from 'dom-lib';
 
-export const dispalyName = 'DOMHelper';
+const DOMHelper = {
+  ...helpers,
+  isElement
+};
 
 export default DOMHelper;

@@ -1,9 +1,9 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { render } from '@testing-library/react';
 import CheckPicker from '../index';
-import { createTestContainer, getDOMNode, getStyle, inChrome } from '@test/testUtils';
+import { getStyle, inChrome } from '@test/testUtils';
 
-import '../styles/index';
+import '../styles/index.less';
 
 const data = [
   {
@@ -26,9 +26,7 @@ const data = [
 describe('CheckPicker styles', () => {
   it('Should render the correct styles', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(<CheckPicker data={data} ref={instanceRef} />, createTestContainer());
-    const toggleDom = getDOMNode(instanceRef.current).querySelector('.rs-picker-toggle');
-    toggleDom.click();
+    render(<CheckPicker data={data} ref={instanceRef} open />);
     const menuItemLabel = document.body.querySelector(
       '.rs-picker-check-menu-items .rs-checkbox-checker label'
     );

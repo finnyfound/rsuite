@@ -11,13 +11,12 @@ module.exports = {
   extends: [
     'plugin:@typescript-eslint/recommended',
     'plugin:react/recommended',
-    'prettier/@typescript-eslint',
-    'plugin:prettier/recommended'
+    'plugin:react-hooks/recommended',
+    'prettier'
   ],
   parserOptions: {},
   plugins: ['@typescript-eslint', 'react'],
   rules: {
-    quotes: [ERROR, 'single'],
     semi: [ERROR, 'always'],
     'space-infix-ops': ERROR,
     'prefer-spread': ERROR,
@@ -27,11 +26,23 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': ERROR,
     '@typescript-eslint/no-explicit-any': OFF,
     '@typescript-eslint/explicit-function-return-type': OFF,
-    '@typescript-eslint/explicit-member-accessibility': OFF
+    '@typescript-eslint/explicit-member-accessibility': OFF,
+    '@typescript-eslint/no-namespace': OFF,
+    '@typescript-eslint/explicit-module-boundary-types': OFF,
+    'react/display-name': OFF,
+    'react/prop-types': OFF
   },
   settings: {
     react: {
       version: 'detect'
     }
-  }
+  },
+  overrides: [
+    {
+      files: ['*Spec.js'],
+      rules: {
+        'react/prop-types': 'off'
+      }
+    }
+  ]
 };

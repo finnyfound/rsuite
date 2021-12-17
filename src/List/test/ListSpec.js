@@ -1,4 +1,6 @@
 import React from 'react';
+import { render } from '@testing-library/react';
+import ReactTestUtils from 'react-dom/test-utils';
 import List from '../List';
 import { getDOMNode } from '@test/testUtils';
 
@@ -63,37 +65,45 @@ describe('List', () => {
 
   it('should call onSortStart', done => {
     const callback = () => done();
-    const domNode = getDOMNode(
-      <List sortable onSortStart={callback}>
+    const ref = React.createRef();
+    render(
+      <List ref={ref} sortable onSortStart={callback}>
         <List.Item index={1}>item1</List.Item>
         <List.Item index={2}>item2</List.Item>
       </List>
     );
-    const event = new Event('mousedown', { bubbles: true });
-    domNode.firstChild.dispatchEvent(event);
+
+    ReactTestUtils.Simulate.mouseDown(ref.current.firstChild);
   });
 
   it('should call onSortMove', done => {
     const callback = () => done();
-    const mousedownEvent = new Event('mousedown', { bubbles: true });
     const mousemoveEvent = new Event('mousemove', { bubbles: true });
-    const domNode = getDOMNode(
-      <List sortable onSortStart={() => window.dispatchEvent(mousemoveEvent)} onSortMove={callback}>
+    const ref = React.createRef();
+    render(
+      <List
+        sortable
+        ref={ref}
+        onSortStart={() => window.dispatchEvent(mousemoveEvent)}
+        onSortMove={callback}
+      >
         <List.Item index={1}>item1</List.Item>
         <List.Item index={2}>item2</List.Item>
       </List>
     );
-    domNode.firstChild.dispatchEvent(mousedownEvent);
+
+    ReactTestUtils.Simulate.mouseDown(ref.current.firstChild);
   });
 
   it('should call onSortEnd & onSort', done => {
     let count = 0;
     const callback = () => ++count > 1 && done();
-    const mousedownEvent = new Event('mousedown', { bubbles: true });
     const mouseupEvent = new Event('mouseup', { bubbles: true });
-    const domNode = getDOMNode(
+    const ref = React.createRef();
+    render(
       <List
         sortable
+        ref={ref}
         onSortStart={() => window.dispatchEvent(mouseupEvent)}
         onSortEnd={callback}
         onSort={callback}
@@ -102,6 +112,7 @@ describe('List', () => {
         <List.Item index={2}>item2</List.Item>
       </List>
     );
-    domNode.firstChild.dispatchEvent(mousedownEvent);
+
+    ReactTestUtils.Simulate.mouseDown(ref.current.firstChild);
   });
 });

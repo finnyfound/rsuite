@@ -1,24 +1,25 @@
 import React from 'react';
-import ReactDOM, { findDOMNode } from 'react-dom';
+import { render } from '@testing-library/react';
 import Calendar from '../CalendarPanel';
 import {
-  createTestContainer,
+  getDefaultPalette,
   getDOMNode,
   getStyle,
-  getDefaultPalette,
-  toRGB,
+  inChrome,
   itChrome,
-  inChrome
+  toRGB
 } from '@test/testUtils';
+import ReactTestUtils from 'react-dom/test-utils';
 
-import '../styles/index';
+import '../styles/index.less';
+import { CalendarState } from '../Calendar';
 
 const { H500, H700 } = getDefaultPalette();
 
 describe('Calendar styles', () => {
   it('MonthToolbar should render correct styles', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(<Calendar ref={instanceRef} />, createTestContainer());
+    render(<Calendar ref={instanceRef} />);
     const dom = getDOMNode(instanceRef.current);
 
     const monthToolbarDom = dom.querySelector('.rs-calendar-header-month-toolbar');
@@ -29,17 +30,17 @@ describe('Calendar styles', () => {
 
   it('TodayButton should render correct styles', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(<Calendar ref={instanceRef} />, createTestContainer());
+    render(<Calendar ref={instanceRef} />);
     const dom = getDOMNode(instanceRef.current);
 
     const todayButtonDom = dom.querySelector('.rs-calendar-btn-today');
     assert.equal(getStyle(todayButtonDom, 'backgroundColor'), toRGB('#f7f7fa'));
-    inChrome && assert.equal(getStyle(todayButtonDom, 'padding'), '8px 12px');
+    inChrome && assert.equal(getStyle(todayButtonDom, 'padding'), '5px 10px');
   });
 
   it('Selected item should render correct styles', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(<Calendar ref={instanceRef} />, createTestContainer());
+    render(<Calendar ref={instanceRef} />);
     const dom = getDOMNode(instanceRef.current);
 
     const selectedDom = dom.querySelector(
@@ -47,14 +48,18 @@ describe('Calendar styles', () => {
     );
     const contentDom = selectedDom.children[0];
     inChrome &&
-      assert.equal(getStyle(selectedDom, 'borderColor'), H500, 'Selected item border-color');
+      assert.equal(
+        getStyle(selectedDom, 'boxShadow'),
+        `${H500} 0px 0px 0px 1px inset`,
+        'Selected item box-shadow'
+      );
     assert.equal(getStyle(contentDom, 'backgroundColor'), H500, 'Selected item background-color');
     assert.equal(getStyle(contentDom, 'color'), toRGB('#fff'), 'Selected item color');
   });
 
   it('Click date title button should render correct styles', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(<Calendar ref={instanceRef} />, createTestContainer());
+    render(<Calendar ref={instanceRef} />);
     const dom = getDOMNode(instanceRef.current);
 
     const dateTitleDom = dom.querySelector('.rs-calendar-header-title-date');
@@ -83,12 +88,6 @@ describe('Calendar styles', () => {
       toRGB('#fff'),
       'DropdownActiveCellDom color'
     );
-    inChrome &&
-      assert.equal(
-        getStyle(dropdownActiveCellDom, 'borderColor'),
-        H500,
-        'DropdownActiveCellDom border-color'
-      );
     assert.equal(
       getStyle(dropdownActiveCellDom, 'backgroundColor'),
       H500,
@@ -98,7 +97,7 @@ describe('Calendar styles', () => {
 
   itChrome('Should be bordered on cell', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(<Calendar bordered ref={instanceRef} />, createTestContainer());
+    render(<Calendar bordered ref={instanceRef} />);
     const dom = getDOMNode(instanceRef.current);
     const tableCellDom = dom.querySelector('.rs-calendar-table-cell');
     assert.equal(
@@ -110,11 +109,11 @@ describe('Calendar styles', () => {
 
   itChrome('Should be bordered on month row', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(
-      <Calendar calendarState={'DROP_MONTH'} bordered ref={instanceRef} />,
-      createTestContainer()
-    );
-    const dom = getDOMNode(instanceRef.current);
+    render(<Calendar calendarState={CalendarState.DROP_MONTH} bordered ref={instanceRef} />);
+    const dom = instanceRef.current;
+
+    // click month dropdown button
+    ReactTestUtils.Simulate.click(dom.querySelector('.rs-calendar-header-title-date'));
     const dropdownRowDom = dom.querySelector('.rs-calendar-month-dropdown-row');
 
     assert.equal(
@@ -126,7 +125,7 @@ describe('Calendar styles', () => {
 
   it('Should render compact calendar', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(<Calendar compact ref={instanceRef} />, createTestContainer());
+    render(<Calendar compact ref={instanceRef} />);
     const tableCellContentDom = getDOMNode(instanceRef.current).querySelector(
       '.rs-calendar-table-row:not(.rs-calendar-table-header-row) .rs-calendar-table-cell-content'
     );

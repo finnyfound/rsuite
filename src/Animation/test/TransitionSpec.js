@@ -3,7 +3,7 @@ import Transition from '../Transition';
 import { getDOMNode, getInstance } from '@test/testUtils';
 
 describe('Animation', () => {
-  it('Should outout enteredClassName', () => {
+  it('Should output enteredClassName', () => {
     const instance = getDOMNode(
       <Transition in enteredClassName="class-in">
         <div>test</div>
@@ -37,8 +37,11 @@ describe('Animation', () => {
         exitedClassName="class-out"
         enteredClassName="class-in"
         onEntered={() => {
-          if (instance.className === 'class-in') {
+          try {
+            assert.equal(instance.className, 'class-in');
             done();
+          } catch (err) {
+            done(err);
           }
         }}
       >

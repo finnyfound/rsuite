@@ -1,20 +1,24 @@
 import React from 'react';
 import ReactTestUtils from 'react-dom/test-utils';
+import { render } from '@testing-library/react';
 import { getDOMNode, getInstance } from '@test/testUtils';
 import Breadcrumb from '../Breadcrumb';
 
-describe('Breadcrumb', () => {
-  it('Should apply id to the wrapper ol element', () => {
-    const instance = getInstance(<Breadcrumb id="custom-id" />);
-    const olNode = ReactTestUtils.findRenderedDOMComponentWithTag(instance, 'ol');
+afterEach(() => {
+  sinon.restore();
+});
 
-    assert.equal(olNode.id, 'custom-id');
+describe('Breadcrumb', () => {
+  it('Should apply id to the wrapper nav element', () => {
+    const instance = getDOMNode(<Breadcrumb id="custom-id" />);
+
+    assert.equal(instance.tagName, 'NAV');
+    assert.equal(instance.id, 'custom-id');
   });
 
   it('Should have breadcrumb class', () => {
     const instance = getInstance(<Breadcrumb />);
-    const olNode = ReactTestUtils.findRenderedDOMComponentWithTag(instance, 'ol');
-    assert.include(olNode.className, 'breadcrumb');
+    assert.include(instance.className, 'breadcrumb');
   });
 
   it('Should have custom classes', () => {
@@ -39,7 +43,7 @@ describe('Breadcrumb', () => {
     );
 
     assert.equal(instance.querySelectorAll('.rs-breadcrumb-item').length, 3);
-    assert.equal(instance.querySelectorAll('.rs-breadcrumb-item')[1].innerText, '...');
+    assert.equal(instance.querySelectorAll('.rs-breadcrumb-item')[1].textContent, '...');
   });
 
   it('Should call onExpand callback', done => {
@@ -58,21 +62,7 @@ describe('Breadcrumb', () => {
       </Breadcrumb>
     );
 
-    ReactTestUtils.Simulate.click(
-      instance.querySelectorAll('.rs-breadcrumb-item')[1].querySelector('a')
-    );
-  });
-
-  it('Should have a navigation role', () => {
-    const instance = getDOMNode(<Breadcrumb />);
-
-    assert.equal(instance.getAttribute('role'), 'navigation');
-  });
-
-  it('Should have an aria-label in ol', () => {
-    const instance = getDOMNode(<Breadcrumb />);
-
-    assert.equal(instance.getAttribute('aria-label'), 'breadcrumbs');
+    ReactTestUtils.Simulate.click(instance.querySelectorAll('.rs-breadcrumb-item')[1]);
   });
 
   it('Should have a default separator', () => {
@@ -83,8 +73,8 @@ describe('Breadcrumb', () => {
       </Breadcrumb>
     );
 
-    assert.equal(instance.querySelectorAll('li')[1].className, 'rs-breadcrumb-separator');
-    assert.equal(instance.querySelectorAll('li')[1].innerText, '/');
+    assert.equal(instance.childNodes[1].className, 'rs-breadcrumb-separator');
+    assert.equal(instance.childNodes[1].textContent, '/');
   });
 
   it('Should have a custom separator', () => {
@@ -95,9 +85,9 @@ describe('Breadcrumb', () => {
       </Breadcrumb>
     );
 
-    assert.equal(instance.querySelectorAll('li')[1].className, 'rs-breadcrumb-separator');
-    assert.equal(instance.querySelectorAll('li')[1].childNodes[0].tagName, 'SPAN');
-    assert.equal(instance.querySelectorAll('li')[1].childNodes[0].innerText, '-');
+    assert.equal(instance.childNodes[1].className, 'rs-breadcrumb-separator');
+    assert.equal(instance.childNodes[1].tagName, 'SPAN');
+    assert.equal(instance.childNodes[1].textContent, '-');
   });
 
   it('Should have a custom className', () => {
@@ -114,5 +104,25 @@ describe('Breadcrumb', () => {
   it('Should have a custom className prefix', () => {
     const instance = getDOMNode(<Breadcrumb classPrefix="custom-prefix" />);
     assert.ok(instance.className.match(/\bcustom-prefix\b/));
+  });
+
+  it('Should not get "children with the same key" warning when generating items with array.map', () => {
+    sinon.spy(console, 'error');
+
+    const items = [{ text: 'Home', href: '/' }, { text: 'Current Page' }];
+
+    render(
+      <Breadcrumb>
+        {items.map((item, index) => (
+          <Breadcrumb.Item key={index} href={item.href} active={!item.href}>
+            {item.text}
+          </Breadcrumb.Item>
+        ))}
+      </Breadcrumb>
+    );
+
+    expect(console.error).not.to.have.been.calledWith(
+      sinon.match(/Warning: Encountered two children with the same key/)
+    );
   });
 });

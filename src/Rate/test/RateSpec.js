@@ -1,8 +1,10 @@
 import React from 'react';
-import { getDOMNode } from '@test/testUtils';
-import Rate from '../Rate';
+import { render } from '@testing-library/react';
 import ReactTestUtils from 'react-dom/test-utils';
-import Icon from '../../Icon';
+import { getDOMNode } from '@test/testUtils';
+import CameraRetro from '@rsuite/icons/legacy/CameraRetro';
+import Star from '@rsuite/icons/legacy/Star';
+import Rate from '../Rate';
 
 describe('Rate', () => {
   it('Should render a default Rate', () => {
@@ -16,9 +18,14 @@ describe('Rate', () => {
   });
 
   it('Should allow clean full value', () => {
-    const instance = getDOMNode(<Rate defaultValue={1} />);
-    ReactTestUtils.Simulate.click(instance.querySelector('.rs-rate-character-full'));
-    assert.equal(instance.querySelectorAll('.rs-rate-character-full').length, 0);
+    const ref = React.createRef();
+    render(<Rate defaultValue={1} ref={ref} />);
+
+    ReactTestUtils.act(() => {
+      ReactTestUtils.Simulate.click(ref.current.querySelector('.rs-rate-character-full'));
+    });
+
+    assert.equal(ref.current.querySelectorAll('.rs-rate-character-full').length, 0);
   });
 
   it('Should allow clean half value', () => {
@@ -50,7 +57,7 @@ describe('Rate', () => {
 
   it('Should render A character', () => {
     const instance = getDOMNode(<Rate defaultValue={1} character="A" />);
-    assert.equal(instance.querySelector('.rs-rate-character-before').innerText, 'A');
+    assert.equal(instance.querySelector('.rs-rate-character-before').textContent, 'A');
   });
 
   it('Should render a custom character', () => {
@@ -59,16 +66,13 @@ describe('Rate', () => {
         defaultValue={4}
         renderCharacter={value => {
           if (value > 2) {
-            return <Icon icon="camera-retro" className="custom" />;
+            return <CameraRetro />;
           }
-          return <Icon icon="star" />;
+          return <Star />;
         }}
       />
     );
-    assert.include(
-      instance.querySelector('.rs-rate-character-before').firstChild.className,
-      'custom'
-    );
+    assert.isNotNull(instance.querySelector('[aria-label="camera retro"]'));
   });
 
   it('Should disabled,cant click', () => {
@@ -93,28 +97,61 @@ describe('Rate', () => {
     assert.include(instance.className, 'rs-rate-lg');
   });
 
-  it('Should call onChange callback', done => {
+  it('Should call onChange callback with correct value', done => {
     const doneOp = value => {
-      if (value === 3) {
+      try {
+        assert.equal(value, 3);
         done();
+      } catch (err) {
+        done(err);
       }
     };
-    const instance = getDOMNode(<Rate defaultValue={1} onChange={doneOp} />);
-    ReactTestUtils.Simulate.mouseMove(instance.querySelectorAll('.rs-rate-character-before')[2]);
-    ReactTestUtils.Simulate.click(instance.querySelectorAll('.rs-rate-character')[2]);
+
+    const ref = React.createRef();
+    render(<Rate ref={ref} defaultValue={1} onChange={doneOp} />);
+
+    ReactTestUtils.act(() => {
+      ReactTestUtils.Simulate.mouseMove(
+        ref.current.querySelectorAll('.rs-rate-character-before')[2]
+      );
+    });
+
+    ReactTestUtils.act(() => {
+      ReactTestUtils.Simulate.click(ref.current.querySelectorAll('.rs-rate-character')[2]);
+    });
   });
 
   it('Should call onChange callback by KeyDown event', done => {
     const doneOp = value => {
-      if (value === 3) {
+      try {
+        assert.equal(value, 3);
         done();
+      } catch (err) {
+        done(err);
       }
     };
-    const instance = getDOMNode(<Rate defaultValue={1} onChange={doneOp} />);
-    const characters = instance.querySelectorAll('.rs-rate-character');
-    ReactTestUtils.Simulate.keyDown(characters[1], { keyCode: 39 });
-    ReactTestUtils.Simulate.keyDown(characters[2], { keyCode: 39 });
-    ReactTestUtils.Simulate.keyDown(characters[2], { keyCode: 13 });
+
+    const ref = React.createRef();
+
+    render(<Rate ref={ref} defaultValue={1} onChange={doneOp} />);
+
+    ReactTestUtils.act(() => {
+      ReactTestUtils.Simulate.keyDown(ref.current.querySelectorAll('.rs-rate-character')[1], {
+        key: 'ArrowRight'
+      });
+    });
+
+    ReactTestUtils.act(() => {
+      ReactTestUtils.Simulate.keyDown(ref.current.querySelectorAll('.rs-rate-character')[2], {
+        key: 'ArrowRight'
+      });
+    });
+
+    ReactTestUtils.act(() => {
+      ReactTestUtils.Simulate.keyDown(ref.current.querySelectorAll('.rs-rate-character')[2], {
+        key: 'Enter'
+      });
+    });
   });
 
   it('Should be vertical', () => {
@@ -136,5 +173,56 @@ describe('Rate', () => {
   it('Should have a custom className prefix', () => {
     const instance = getDOMNode(<Rate classPrefix="custom-prefix" />);
     assert.ok(instance.className.match(/\bcustom-prefix\b/));
+  });
+
+  it('Should update characterMap when value is updated', () => {
+    const TestApp = React.forwardRef((props, ref) => {
+      const [value, setValue] = React.useState(2);
+      const rootRef = React.useRef();
+      React.useImperativeHandle(ref, () => ({
+        root: rootRef.current,
+        setValue
+      }));
+
+      return <Rate {...props} ref={rootRef} value={value} />;
+    });
+
+    TestApp.displayName = 'TestApp';
+
+    const ref = React.createRef();
+    render(<TestApp ref={ref} />);
+
+    assert.equal(
+      ref.current.root.querySelector('[aria-checked="true"]').getAttribute('aria-posinset'),
+      '2'
+    );
+
+    ReactTestUtils.act(() => {
+      ref.current.setValue(0);
+    });
+
+    assert.equal(ref.current.root.querySelectorAll('[aria-checked="false"]').length, 5);
+  });
+
+  describe('Plain text', () => {
+    it('Should render current value and max value', () => {
+      const { getByTestId } = render(
+        <div data-testid="content">
+          <Rate value={1} max={5} plaintext />
+        </div>
+      );
+
+      expect(getByTestId('content')).to.have.text('1(5)');
+    });
+
+    it('Should render "Not selected" if value is empty', () => {
+      const { getByTestId } = render(
+        <div data-testid="content">
+          <Rate value={null} max={5} plaintext />
+        </div>
+      );
+
+      expect(getByTestId('content')).to.have.text('Not selected');
+    });
   });
 });

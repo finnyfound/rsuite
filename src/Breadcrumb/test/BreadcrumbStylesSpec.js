@@ -1,15 +1,15 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { render } from '@testing-library/react';
 import Breadcrumb from '../index';
-import { createTestContainer, getDOMNode, getStyle, toRGB, itChrome } from '@test/testUtils';
+import { getStyle, itChrome } from '@test/testUtils';
 
-import '../styles/index';
+import '../styles/index.less';
 
 describe('Breadcrumb styles', () => {
   itChrome('Should render correct padding', () => {
     const instanceRef = React.createRef();
-    ReactDOM.render(<Breadcrumb ref={instanceRef} />, createTestContainer());
-    const dom = getDOMNode(instanceRef.current);
-    assert.equal(getStyle(dom, 'padding'), '8px 15px');
+
+    render(<Breadcrumb ref={instanceRef} />);
+    assert.equal(getStyle(instanceRef.current, 'padding'), '0px');
   });
 });

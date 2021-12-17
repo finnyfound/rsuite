@@ -1,131 +1,129 @@
-import * as React from 'react';
+import React, { ReactNode, useCallback, useState } from 'react';
 import PropTypes from 'prop-types';
-import classNames from 'classnames';
+import Button from '../Button';
+import { useClassNames, useUpdateEffect } from '../utils';
+import { StandardProps } from '../@types/common';
+import { getDefaultRanges, getRanges } from './utils';
+import { InnerRange, RangeType } from './types';
+import { CalendarLocale } from '../locales';
 
-import FormattedMessage from '../IntlProvider/FormattedMessage';
-import { getUnhandledProps, prefix, defaultProps } from '../utils';
-import { addDays } from 'date-fns';
-import { RangeType } from './DatePicker.d';
+export type { RangeType } from './types';
 
-export interface ToolbarProps {
-  ranges: RangeType[];
-  className?: string;
-  classPrefix?: string;
-  pageDate?: Date;
-  onShortcut?: (value: Date, closeOverlay?: boolean, event?: React.SyntheticEvent<any>) => void;
-  onOk?: (event: React.SyntheticEvent<any>) => void;
-  disabledHandle?: (date?: Date) => boolean;
-  hideOkButton?: boolean;
+export interface ToolbarProps<T = any, Shortcut = T> extends StandardProps {
+  hideOkBtn?: boolean;
+  locale?: CalendarLocale;
+  calendarDate: T;
+  ranges?: RangeType<Shortcut>[];
+  disabledOkBtn?: (value: T) => boolean;
+  disabledShortcut?: (value: T) => boolean;
+  onOk?: (event: React.MouseEvent) => void;
+  onClickShortcut?: (value: Shortcut, closeOverlay: boolean, event: React.MouseEvent) => void;
 }
 
-const defaultRanges = [
-  {
-    label: 'today',
-    value: new Date(),
-    closeOverlay: true
-  },
-  {
-    label: 'yesterday',
-    value: addDays(new Date(), -1),
-    closeOverlay: true
-  }
-];
+type ToolbarComponent = React.ForwardRefExoticComponent<ToolbarProps> & {
+  <T = any, Shortcut = T>(props: ToolbarProps<T, Shortcut>): React.ReactElement | null;
+};
 
-function hasLocaleKey(key: any) {
-  return defaultRanges.some(item => item.label === key);
-}
+/**
+ * Toolbar for DatePicker and DateRangePicker
+ */
+const Toolbar: ToolbarComponent = React.forwardRef<HTMLDivElement, ToolbarProps>((props, ref) => {
+  const {
+    className,
+    classPrefix = 'picker-toolbar',
+    disabledOkBtn,
+    disabledShortcut,
+    hideOkBtn,
+    onOk,
+    onClickShortcut,
+    calendarDate,
+    ranges: rangesProp,
+    locale,
+    ...rest
+  } = props;
+  const [ranges, setRanges] = useState<InnerRange<any>[]>(getRanges(props));
+  const { merge, prefix, withClassPrefix } = useClassNames(classPrefix);
 
-class Toolbar extends React.PureComponent<ToolbarProps> {
-  static propTypes = {
-    ranges: PropTypes.array,
-    className: PropTypes.string,
-    classPrefix: PropTypes.string,
-    pageDate: PropTypes.instanceOf(Date),
-    onShortcut: PropTypes.func,
-    onOk: PropTypes.func,
-    disabledHandle: PropTypes.func,
-    hideOkButton: PropTypes.bool
-  };
-  static defaultProps = {
-    ranges: defaultRanges
-  };
+  useUpdateEffect(() => {
+    setRanges(getRanges({ ranges: rangesProp, calendarDate }));
+  }, [calendarDate, rangesProp]);
 
-  addPrefix = (name: string) => prefix(this.props.classPrefix)(name);
+  const hasLocaleKey = useCallback(
+    (key: ReactNode) => getDefaultRanges(calendarDate).some(item => item.label === key),
+    [calendarDate]
+  );
 
-  renderOkButton() {
-    const { disabledHandle, pageDate, onOk, hideOkButton } = this.props;
-
-    if (hideOkButton) {
+  const renderOkButton = useCallback(() => {
+    if (hideOkBtn) {
       return null;
     }
 
-    const disabled = disabledHandle?.(pageDate);
-    const classes = classNames(this.addPrefix('right-btn-ok'), {
-      [this.addPrefix('btn-disabled')]: disabled
-    });
-    return (
-      <div className={this.addPrefix('right')}>
-        <button className={classes} onClick={disabled ? undefined : onOk}>
-          <FormattedMessage id="ok" />
-        </button>
-      </div>
-    );
-  }
-
-  render() {
-    const {
-      ranges,
-      onShortcut,
-      disabledHandle,
-      className,
-      pageDate,
-      classPrefix,
-      hideOkButton,
-      ...rest
-    } = this.props;
-
-    if (hideOkButton && ranges.length === 0) {
-      return null;
-    }
-
-    const classes = classNames(classPrefix, className);
-    const unhandled = getUnhandledProps(Toolbar, rest);
+    const disabled = disabledOkBtn?.(calendarDate);
 
     return (
-      <div {...unhandled} className={classes}>
-        <div className={this.addPrefix('ranges')}>
-          {ranges.map((item: RangeType, index: number) => {
-            const value: any = typeof item.value === 'function' ? item.value(pageDate) : item.value;
-            const disabled = disabledHandle?.(value);
-            const itemClassName = classNames(this.addPrefix('option'), {
-              [this.addPrefix('option-disabled')]: disabled
-            });
-            return (
-              <a
-                key={index}
-                role="button"
-                tabIndex={-1}
-                className={itemClassName}
-                onClick={event => {
-                  if (disabled) {
-                    return;
-                  }
-                  onShortcut?.(value, item.closeOverlay, event);
-                }}
-              >
-                {hasLocaleKey(item.label) ? <FormattedMessage id={item.label} /> : item.label}
-              </a>
-            );
-          })}
-        </div>
-        {this.renderOkButton()}
+      <div className={prefix('right')}>
+        <Button
+          appearance="primary"
+          size="sm"
+          disabled={disabled}
+          onClick={disabled ? undefined : onOk}
+        >
+          {locale?.ok}
+        </Button>
       </div>
     );
-  }
-}
+  }, [disabledOkBtn, hideOkBtn, locale, onOk, calendarDate, prefix]);
 
-const enhance = defaultProps<ToolbarProps>({
-  classPrefix: 'picker-toolbar'
+  if (hideOkBtn && ranges.length === 0) {
+    return null;
+  }
+
+  const classes = merge(className, withClassPrefix());
+  return (
+    <div {...rest} ref={ref} className={classes}>
+      <div className={prefix('ranges')}>
+        {ranges.map(({ value, closeOverlay, label }, index: number) => {
+          const disabled = disabledShortcut?.(value);
+
+          const handleClickShortcut = (event: React.MouseEvent) => {
+            if (disabled) {
+              return;
+            }
+            onClickShortcut?.(value, closeOverlay ?? false, event);
+          };
+
+          return (
+            <Button
+              appearance="link"
+              size="sm"
+              key={index}
+              disabled={disabled}
+              onClick={handleClickShortcut}
+            >
+              {hasLocaleKey(label) && typeof label === 'string' ? locale?.[label] : label}
+            </Button>
+          );
+        })}
+      </div>
+      {renderOkButton()}
+    </div>
+  );
 });
 
-export default enhance(Toolbar);
+Toolbar.displayName = 'Toolbar';
+Toolbar.propTypes = {
+  ranges: PropTypes.array,
+  className: PropTypes.string,
+  classPrefix: PropTypes.string,
+  calendarDate: PropTypes.oneOfType([
+    PropTypes.instanceOf(Date),
+    PropTypes.arrayOf(PropTypes.instanceOf(Date))
+  ]).isRequired,
+  onClickShortcut: PropTypes.func,
+  onOk: PropTypes.func,
+  disabledShortcut: PropTypes.func,
+  disabledOkBtn: PropTypes.func,
+  hideOkBtn: PropTypes.bool
+};
+
+export default Toolbar;

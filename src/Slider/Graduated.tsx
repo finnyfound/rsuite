@@ -1,86 +1,88 @@
-import * as React from 'react';
-import classNames from 'classnames';
-import prefix, { defaultClassPrefix } from '../utils/prefix';
+import React from 'react';
+import PropTypes from 'prop-types';
+import { useClassNames } from '../utils';
 import { precisionMath } from './utils';
+import Mark from './Mark';
+import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
 
-const addPrefix = prefix(defaultClassPrefix('slider'));
-
-interface MarkProps {
-  mark?: number;
-  last?: boolean;
+export interface GraduatedProps extends WithAsProps {
+  step: number;
+  min: number;
+  max: number;
+  count: number;
+  value: number | number[];
   renderMark?: (mark: number) => React.ReactNode;
 }
 
-function Mark(props: MarkProps) {
-  const { mark, last, renderMark } = props;
-  const classes = classNames(addPrefix('mark'), {
-    [addPrefix('last-mark')]: last
-  });
+const Graduated: RsRefForwardingComponent<'div', GraduatedProps> = React.forwardRef(
+  (props: GraduatedProps, ref) => {
+    const {
+      as: Component = 'div',
+      step,
+      min,
+      max,
+      count,
+      value,
+      classPrefix = 'slider',
+      className,
+      renderMark
+    } = props;
+    const { merge, prefix } = useClassNames(classPrefix);
+    const activeIndexs: number[] = [];
 
-  if (renderMark) {
+    let startIndex = 0;
+    let endIndex = 0;
+
+    if (Array.isArray(value)) {
+      const [start, end] = value;
+
+      startIndex = precisionMath(start / step - min / step);
+      endIndex = precisionMath(end / step - min / step);
+      activeIndexs.push(precisionMath(Math.ceil(((start - min) / (max - min)) * count)));
+      activeIndexs.push(precisionMath(Math.ceil(((end - min) / (max - min)) * count)));
+    } else {
+      endIndex = precisionMath(value / step - min / step);
+      activeIndexs.push(precisionMath(Math.ceil(((value - min) / (max - min)) * count)));
+    }
+
+    const graduatedItems: React.ReactElement[] = [];
+
+    for (let i = 0; i < count; i += 1) {
+      const classes = prefix({
+        pass: i >= startIndex && i <= endIndex,
+        active: ~activeIndexs.indexOf(i)
+      });
+
+      const mark = precisionMath(i * step + min);
+      const lastMark = Math.min(max, mark + step);
+      const last = i === count - 1;
+
+      graduatedItems.push(
+        <li className={classes} key={i}>
+          <Mark mark={mark} renderMark={renderMark} />
+          {last ? <Mark mark={lastMark} renderMark={renderMark} last={last} /> : null}
+        </li>
+      );
+    }
+
+    const classes = merge(className, prefix('graduator'));
+
     return (
-      <span className={classes}>
-        <span className={addPrefix('mark-content')}>{renderMark(mark)}</span>
-      </span>
+      <Component ref={ref} className={classes}>
+        <ol>{graduatedItems}</ol>
+      </Component>
     );
   }
+);
 
-  return null;
-}
-
-interface GraduatedProps {
-  step?: number;
-  min?: number;
-  max?: number;
-  count?: number;
-  value?: number | [number, number];
-  renderMark?: (mark: number) => React.ReactNode;
-}
-
-function Graduated(props: GraduatedProps) {
-  const { step, min, max, count, value, renderMark } = props;
-  const activeIndexs = [];
-
-  let startIndex = 0;
-  let endIndex = 0;
-
-  if (Array.isArray(value)) {
-    const [start, end] = value;
-
-    startIndex = precisionMath(start / step - min / step);
-    endIndex = precisionMath(end / step - min / step);
-    activeIndexs.push(precisionMath(Math.ceil(((start - min) / (max - min)) * count)));
-    activeIndexs.push(precisionMath(Math.ceil(((end - min) / (max - min)) * count)));
-  } else {
-    endIndex = precisionMath(value / step - min / step);
-    activeIndexs.push(precisionMath(Math.ceil(((value - min) / (max - min)) * count)));
-  }
-
-  const graduatedItems = [];
-
-  for (let i = 0; i < count; i += 1) {
-    const classes = classNames({
-      [addPrefix('pass')]: i >= startIndex && i <= endIndex,
-      [addPrefix('active')]: ~activeIndexs.indexOf(i)
-    });
-
-    const mark = precisionMath(i * step + min);
-    const lastMark = Math.min(max, mark + step);
-    const last = i === count - 1;
-
-    graduatedItems.push(
-      <li className={classes} key={i}>
-        <Mark mark={mark} renderMark={renderMark} />
-        {last ? <Mark mark={lastMark} renderMark={renderMark} last={last} /> : null}
-      </li>
-    );
-  }
-
-  return (
-    <div className={addPrefix('graduator')}>
-      <ul>{graduatedItems}</ul>
-    </div>
-  );
-}
+Graduated.displayName = 'Graduated';
+Graduated.propTypes = {
+  step: PropTypes.number,
+  min: PropTypes.number,
+  max: PropTypes.number,
+  count: PropTypes.number,
+  value: PropTypes.oneOfType([PropTypes.number, PropTypes.arrayOf(PropTypes.number)]),
+  renderMark: PropTypes.func
+};
 
 export default Graduated;

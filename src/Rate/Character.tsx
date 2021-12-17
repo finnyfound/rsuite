@@ -1,7 +1,9 @@
-import * as React from 'react';
-import classNames from 'classnames';
-import { prefix, defaultClassPrefix } from '../utils';
-import { contains } from 'dom-lib';
+import React, { useCallback, useRef } from 'react';
+import PropTypes from 'prop-types';
+import { isNil } from 'lodash';
+import contains from 'dom-lib/contains';
+import { useClassNames } from '../utils';
+import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
 
 const characterStatus = {
   [0]: 'empty',
@@ -9,10 +11,9 @@ const characterStatus = {
   [1]: 'full'
 };
 
-interface CharacterProps {
-  children?: React.ReactNode;
+interface CharacterProps extends WithAsProps {
   vertical?: boolean;
-  status?: number;
+  status?: 0 | 0.5 | 1;
   disabled?: boolean;
   onMouseMove?: (key, event: React.MouseEvent) => void;
   onClick?: (key, event: React.MouseEvent) => void;
@@ -21,54 +22,71 @@ interface CharacterProps {
 
 const getKey = (a, b) => (contains(a, b) ? 'before' : 'after');
 
-const Character = React.forwardRef(
-  (
-    {
+const Character: RsRefForwardingComponent<'li', CharacterProps> = React.forwardRef(
+  (props: CharacterProps, ref) => {
+    const {
+      as: Component = 'li',
+      classPrefix = 'rate-character',
+      className,
       children,
       vertical,
-      onClick,
-      onKeyDown,
       status,
       disabled,
+      onClick,
+      onKeyDown,
       onMouseMove,
       ...rest
-    }: CharacterProps,
-    ref: React.Ref<any>
-  ) => {
-    const classPrefix = defaultClassPrefix('rate-character');
-    const addPrefix = prefix(classPrefix);
-    const beforeRef = React.createRef<HTMLDivElement>();
+    } = props;
 
-    const handleMouseMove = (event: React.MouseEvent) => {
-      onMouseMove?.(getKey(beforeRef.current, event.target), event);
-    };
+    const { merge, prefix, withClassPrefix } = useClassNames(classPrefix);
+    const beforeRef = useRef<HTMLDivElement>(null);
+    const classes = merge(className, withClassPrefix(!isNil(status) && characterStatus[status]));
 
-    const handleClick = (event: React.MouseEvent) => {
-      onClick?.(getKey(beforeRef.current, event.target), event);
-    };
+    const handleMouseMove = useCallback(
+      (event: React.MouseEvent) => {
+        onMouseMove?.(getKey(beforeRef.current, event.target), event);
+      },
+      [onMouseMove]
+    );
+
+    const handleClick = useCallback(
+      (event: React.MouseEvent) => {
+        onClick?.(getKey(beforeRef.current, event.target), event);
+      },
+      [onClick]
+    );
 
     return (
-      <li
+      <Component
         {...rest}
         ref={ref}
+        className={classes}
         tabIndex={0}
         onClick={disabled ? null : handleClick}
         onKeyDown={disabled ? null : onKeyDown}
         onMouseMove={disabled ? null : handleMouseMove}
-        className={classNames(classPrefix, addPrefix(characterStatus[status]))}
       >
-        <div
-          ref={beforeRef}
-          className={classNames(addPrefix('before'), { [addPrefix('vertical')]: vertical })}
-        >
+        <div ref={beforeRef} className={prefix('before', { vertical })}>
           {children}
         </div>
-        <div className={addPrefix('after')}>{children}</div>
-      </li>
+        <div className={prefix('after')}>{children}</div>
+      </Component>
     );
   }
 );
 
 Character.displayName = 'Character';
+Character.propTypes = {
+  as: PropTypes.elementType,
+  className: PropTypes.string,
+  classPrefix: PropTypes.string,
+  children: PropTypes.node,
+  vertical: PropTypes.bool,
+  status: PropTypes.number,
+  disabled: PropTypes.bool,
+  onMouseMove: PropTypes.func,
+  onClick: PropTypes.func,
+  onKeyDown: PropTypes.func
+};
 
 export default Character;

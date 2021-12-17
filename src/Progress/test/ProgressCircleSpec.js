@@ -1,5 +1,5 @@
 import React from 'react';
-import { innerText, getDOMNode } from '@test/testUtils';
+import { getDOMNode } from '@test/testUtils';
 import ProgressCircle from '../ProgressCircle';
 
 describe('Progress - Circle', () => {
@@ -10,7 +10,7 @@ describe('Progress - Circle', () => {
 
   it('Should have a percentage', () => {
     const instance = getDOMNode(<ProgressCircle percent={10} />);
-    assert.equal(innerText(instance), '10%');
+    assert.equal(instance.textContent, '10%');
   });
 
   it('Should have a width', () => {
@@ -62,5 +62,32 @@ describe('Progress - Circle', () => {
   it('Should have a custom className prefix', () => {
     const instance = getDOMNode(<ProgressCircle classPrefix="custom-prefix" />);
     assert.ok(instance.className.match(/\bcustom-prefix\b/));
+  });
+
+  it('Should render start position by `gapPosition`', () => {
+    const instance1 = getDOMNode(<ProgressCircle gapPosition="top" />);
+    const instance2 = getDOMNode(<ProgressCircle gapPosition="bottom" />);
+    const instance3 = getDOMNode(<ProgressCircle gapPosition="left" />);
+    const instance4 = getDOMNode(<ProgressCircle gapPosition="right" />);
+
+    assert.equal(
+      instance1.querySelector('.rs-progress-trail').getAttribute('d'),
+      'M 50,50 m 0,-47 a 47,47 0 1 1 0,94 a 47,47 0 1 1 0,-94'
+    );
+
+    assert.equal(
+      instance2.querySelector('.rs-progress-trail').getAttribute('d'),
+      'M 50,50 m 0,47 a 47,47 0 1 1 0,-94 a 47,47 0 1 1 0,94'
+    );
+
+    assert.equal(
+      instance3.querySelector('.rs-progress-trail').getAttribute('d'),
+      'M 50,50 m -47,0 a 47,47 0 1 1 94,0 a 47,47 0 1 1 -94,0'
+    );
+
+    assert.equal(
+      instance4.querySelector('.rs-progress-trail').getAttribute('d'),
+      'M 50,50 m 47,0 a 47,47 0 1 1 -94,0 a 47,47 0 1 1 94,0'
+    );
   });
 });

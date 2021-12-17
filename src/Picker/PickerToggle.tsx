@@ -1,133 +1,248 @@
-import * as React from 'react';
-import classNames from 'classnames';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import _ from 'lodash';
-import { prefix, getUnhandledProps, defaultProps, createChainedFunction } from '../utils';
-import DefaultToggleButton from './DefaultToggleButton';
+import debounce from 'lodash/debounce';
+import ToggleButton, { ToggleButtonProps } from './ToggleButton';
+import CloseButton from '../CloseButton';
+import { useClassNames, KEY_VALUES, mergeRefs } from '../utils';
+import { RsRefForwardingComponent, TypeAttributes } from '../@types/common';
+import Plaintext from '../Plaintext';
+import useToggleCaret from '../utils/useToggleCaret';
+import { IconProps } from '@rsuite/icons/lib/Icon';
+import TextMask from '../MaskedInput/TextMask';
+import deprecatePropType from '../utils/deprecatePropType';
 
-export interface PickerToggleProps {
-  classPrefix?: string;
+type ValueType = string | number;
+
+export interface PickerToggleProps extends ToggleButtonProps {
+  value?: ValueType | ValueType[];
+  inputValue?: ValueType | ValueType[];
+  id?: string;
   hasValue?: boolean;
   cleanable?: boolean;
-  className?: string;
-  children?: React.ReactNode;
   caret?: boolean;
-  componentClass: React.ElementType;
+  active?: boolean;
+  disabled?: boolean;
+  readOnly?: boolean;
+  plaintext?: boolean;
+  tabIndex?: number;
+  input?: boolean;
+  inputPlaceholder?: string;
+  inputMask?: (string | RegExp)[];
+  onInputChange?: (value: string, event: React.ChangeEvent) => void;
+  onInputPressEnter?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  onInputBlur?: (event: React.FocusEvent<HTMLElement>) => void;
+  onInputFocus?: (event: React.FocusEvent<HTMLElement>) => void;
+  placement?: TypeAttributes.Placement;
+  /**
+   * Custom caret component
+   * @deprecated Use `caretAs` instead
+   */
+  caretComponent?: React.FC<IconProps>;
+
+  /** Custom caret component */
+  caretAs?: React.ElementType;
   onClean?: (event: React.MouseEvent) => void;
-  active?: boolean;
-  tabIndex: number;
 }
 
-interface PickerToggleState {
-  active?: boolean;
-}
+const defaultInputMask = [];
 
-class PickerToggle extends React.Component<PickerToggleProps, PickerToggleState> {
-  static propTypes = {
-    classPrefix: PropTypes.string,
-    hasValue: PropTypes.bool,
-    cleanable: PropTypes.bool,
-    className: PropTypes.string,
-    children: PropTypes.node,
-    caret: PropTypes.bool,
-    componentClass: PropTypes.elementType,
-    onClean: PropTypes.func,
-    active: PropTypes.bool
-  };
+const PickerToggle: RsRefForwardingComponent<typeof ToggleButton, PickerToggleProps> =
+  React.forwardRef((props: PickerToggleProps, ref) => {
+    const {
+      active: activeProp,
+      as: Component = ToggleButton,
+      classPrefix = 'picker-toggle',
+      children,
+      caret = true,
+      className,
+      disabled,
+      readOnly,
+      plaintext,
+      hasValue,
+      cleanable: cleanableProp,
+      tabIndex = 0,
+      id,
+      value,
+      input,
+      inputPlaceholder,
+      inputValue: inputValueProp,
+      inputMask = defaultInputMask,
+      onInputChange,
+      onInputPressEnter,
+      onInputBlur,
+      onInputFocus,
+      onClean,
+      onFocus,
+      onBlur,
+      placement = 'bottomStart',
+      caretComponent,
+      caretAs = caretComponent,
+      ...rest
+    } = props;
 
-  static defaultProps = {
-    componentClass: DefaultToggleButton,
-    tabIndex: 0,
-    caret: true
-  };
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [activeState, setActive] = useState(false);
+    const { withClassPrefix, merge, prefix } = useClassNames(classPrefix);
+    const getInputValue = useCallback(
+      () =>
+        typeof inputValueProp === 'undefined'
+          ? Array.isArray(value)
+            ? value.join(',')
+            : value
+          : inputValueProp,
+      [inputValueProp, value]
+    );
+    const [inputValue, setInputValue] = useState(getInputValue);
 
-  toggleRef: React.RefObject<any>;
+    useEffect(() => {
+      const value = getInputValue();
+      setInputValue(value);
+    }, [getInputValue]);
 
-  constructor(props: PickerToggleProps) {
-    super(props);
-    this.state = {
-      active: false
+    const classes = merge(className, withClassPrefix({ active: activeProp || activeState }));
+
+    const handleFocus = useCallback(
+      (event: React.FocusEvent<HTMLElement>) => {
+        setActive(true);
+        onFocus?.(event);
+        if (input) {
+          inputRef.current?.focus();
+        }
+      },
+      [input, onFocus]
+    );
+
+    const handleBlur = useCallback(
+      (event: React.FocusEvent<HTMLElement>) => {
+        if (document.activeElement !== inputRef.current) {
+          setActive(false);
+          inputRef.current?.blur();
+        }
+        onBlur?.(event);
+      },
+      [onBlur]
+    );
+
+    const handleInputBlur = (event: React.FocusEvent<HTMLElement>) => {
+      setInputValue(getInputValue());
+      onInputBlur?.(event);
     };
 
-    this.toggleRef = React.createRef();
-  }
-
-  addPrefix = (name: string) => prefix(this.props.classPrefix)(name);
-
-  handleClean = (event: React.MouseEvent<HTMLSpanElement>) => {
-    this.props.onClean?.(event);
-    event.stopPropagation();
-    this.handleBlur();
-  };
-
-  handleFocus = () => {
-    this.setState({ active: true });
-  };
-
-  handleBlur = () => {
-    this.setState({ active: false });
-  };
-  getToggleNode = () => {
-    return this.toggleRef.current;
-  };
-  onFocus = () => {
-    if (typeof this.toggleRef?.current?.focus === 'function') {
-      this.toggleRef.current.focus();
-    }
-  };
-
-  renderToggleClean() {
-    return (
-      <span
-        className={this.addPrefix('clean')}
-        role="button"
-        tabIndex={-1}
-        onClick={this.handleClean}
-      >
-        ✕
-      </span>
+    const handleClean = useCallback(
+      (event: React.MouseEvent<HTMLSpanElement>) => {
+        event.stopPropagation();
+        onClean?.(event);
+        setActive(false);
+      },
+      [onClean]
     );
-  }
 
-  render() {
-    const {
-      componentClass: Component,
-      children,
-      className,
-      hasValue,
-      cleanable,
-      classPrefix,
-      caret,
-      active,
-      tabIndex,
-      ...rest
-    } = this.props;
+    const handleInputChange = useCallback(
+      (event: React.ChangeEvent<HTMLInputElement>) => {
+        const value = event.target?.value;
+        setInputValue(value);
+        onInputChange?.(value, event);
+      },
+      [onInputChange]
+    );
 
-    const classes = classNames(classPrefix, className, {
-      active: active || this.state.active
-    });
-    const unhandled = getUnhandledProps(PickerToggle, rest);
+    const handleInputKeyDown = useCallback(
+      (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (input && event.key === KEY_VALUES.ENTER) {
+          onInputPressEnter?.(event);
+        }
+      },
+      [onInputPressEnter, input]
+    );
+
+    const ToggleCaret = useToggleCaret(placement);
+    const Caret = caretAs ?? ToggleCaret;
+
+    if (plaintext) {
+      return (
+        <Plaintext ref={ref} localeKey="notSelected">
+          {hasValue ? children : null}
+        </Plaintext>
+      );
+    }
+
+    const showCleanButton = cleanableProp && hasValue && !readOnly;
+
+    // When the component is read-only or disabled, the input is not interactive.
+    const inputFocused = readOnly || disabled ? false : input && activeState;
 
     return (
       <Component
-        {...unhandled}
         role="combobox"
-        tabIndex={tabIndex}
+        aria-haspopup="listbox"
+        aria-expanded={activeProp}
+        aria-disabled={disabled}
+        aria-owns={id ? `${id}-listbox` : undefined}
+        {...rest}
+        ref={ref}
+        disabled={disabled}
+        tabIndex={disabled ? undefined : tabIndex}
         className={classes}
-        ref={this.toggleRef}
-        onFocus={createChainedFunction(this.handleFocus, _.get(unhandled, 'onFocus'))}
-        onBlur={createChainedFunction(this.handleBlur, _.get(unhandled, 'onBlur'))}
+        onFocus={!disabled ? handleFocus : null}
+        // The debounce is set to 200 to solve the flicker caused by the switch between input and div.
+        onBlur={!disabled ? debounce(handleBlur, 200) : null}
       >
-        <span className={this.addPrefix(hasValue ? 'value' : 'placeholder')}>{children}</span>
-        {hasValue && cleanable && this.renderToggleClean()}
-        {caret && <span className={this.addPrefix('caret')} />}
+        <TextMask
+          mask={inputMask}
+          value={Array.isArray(inputValue) ? inputValue.toString() : inputValue}
+          onBlur={handleInputBlur}
+          onFocus={onInputFocus}
+          onChange={handleInputChange}
+          onKeyDown={handleInputKeyDown}
+          id={id}
+          aria-hidden={!inputFocused}
+          readOnly={!inputFocused}
+          disabled={disabled}
+          aria-controls={id ? `${id}-listbox` : undefined}
+          tabIndex={-1}
+          className={prefix('textbox', { 'read-only': !inputFocused })}
+          placeholder={inputPlaceholder}
+          render={(ref, props) => <input ref={mergeRefs(inputRef, ref)} {...props} />}
+        />
+
+        {children ? (
+          <span
+            className={prefix(hasValue ? 'value' : 'placeholder')}
+            aria-placeholder={typeof children === 'string' ? children : undefined}
+          >
+            {children}
+          </span>
+        ) : null}
+
+        {showCleanButton && (
+          <CloseButton
+            className={prefix`clean`}
+            tabIndex={-1}
+            locale={{ closeLabel: 'Clear' }}
+            onClick={handleClean}
+          />
+        )}
+        {caret && <Caret className={prefix`caret`} />}
       </Component>
     );
-  }
-}
+  });
 
-const enhance = defaultProps<PickerToggleProps>({
-  classPrefix: 'picker-toggle'
-});
+PickerToggle.displayName = 'PickerToggle';
+PickerToggle.propTypes = {
+  classPrefix: PropTypes.string,
+  hasValue: PropTypes.bool,
+  cleanable: PropTypes.bool,
+  className: PropTypes.string,
+  children: PropTypes.node,
+  caret: PropTypes.bool,
+  as: PropTypes.elementType,
+  onClean: PropTypes.func,
+  active: PropTypes.bool,
+  readOnly: PropTypes.bool,
+  disabled: PropTypes.bool,
+  plaintext: PropTypes.bool,
+  caretComponent: deprecatePropType(PropTypes.elementType, 'Use `caretAs` instead.'),
+  caretAs: PropTypes.elementType
+};
 
-export default enhance(PickerToggle);
+export default PickerToggle;

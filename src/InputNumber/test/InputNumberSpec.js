@@ -1,5 +1,6 @@
 import React from 'react';
-import ReactTestUtils from 'react-dom/test-utils';
+import { render } from '@testing-library/react';
+import ReactTestUtils, { act } from 'react-dom/test-utils';
 
 import InputNumber from '../InputNumber';
 import { getDOMNode } from '@test/testUtils';
@@ -55,50 +56,74 @@ describe('InputNumber', () => {
     assert.ok(instance.querySelector('.rs-input-group-addon i'));
   });
 
-  it('Should call onChange callback when click up button', done => {
-    const doneOp = () => {
-      done();
-    };
-    const instance = getDOMNode(<InputNumber onChange={doneOp} />);
+  it('Should call onChange callback when click up button', () => {
+    const onChangeSpy = sinon.spy();
+    const instance = getDOMNode(<InputNumber onChange={onChangeSpy} />);
     ReactTestUtils.Simulate.click(instance.querySelector('.rs-input-number-touchspin-up'));
+    assert.isTrue(onChangeSpy.calledOnce);
   });
 
-  it('Should call onChange callback when click down button', done => {
-    const doneOp = () => {
-      done();
-    };
-    const instance = getDOMNode(<InputNumber onChange={doneOp} />);
+  it('Should call onChange callback when click down button', () => {
+    const onChangeSpy = sinon.spy();
+    const instance = getDOMNode(<InputNumber onChange={onChangeSpy} />);
     ReactTestUtils.Simulate.click(instance.querySelector('.rs-input-number-touchspin-down'));
+    assert.isTrue(onChangeSpy.calledOnce);
   });
 
-  it('Should return min value  when click up button', done => {
-    const doneOp = value => {
-      if (value === '10') {
-        done();
-      }
-    };
-    const instance = getDOMNode(<InputNumber onChange={doneOp} min={10} />);
+  it('Should return min value  when click up button', () => {
+    const onChangeSpy = sinon.spy();
+    const instance = getDOMNode(<InputNumber onChange={onChangeSpy} min={10} />);
     ReactTestUtils.Simulate.click(instance.querySelector('.rs-input-number-touchspin-up'));
+    assert.equal(onChangeSpy.firstCall.firstArg, 10);
   });
 
-  it('Should return max value  when click up button', done => {
-    const doneOp = value => {
-      if (value === '10') {
-        done();
-      }
-    };
-    const instance = getDOMNode(<InputNumber onChange={doneOp} defaultValue={100} max={10} />);
+  it('Should return max value  when click up button', () => {
+    const onChangeSpy = sinon.spy();
+    const instance = getDOMNode(<InputNumber onChange={onChangeSpy} defaultValue={100} max={10} />);
     ReactTestUtils.Simulate.click(instance.querySelector('.rs-input-number-touchspin-down'));
+    assert.equal(onChangeSpy.firstCall.firstArg, 10);
   });
 
-  it('Should call onChange callback when onblur', done => {
-    const doneOp = () => {
-      done();
-    };
-    const instance = getDOMNode(<InputNumber onChange={doneOp} />);
+  it('Should call onChange callback when onblur', () => {
+    const onChangeSpy = sinon.spy();
+    const instance = getDOMNode(<InputNumber onChange={onChangeSpy} />);
     const input = instance.querySelector('.rs-input');
     input.value = 2;
     ReactTestUtils.Simulate.blur(input);
+    assert.isTrue(onChangeSpy.calledOnce);
+  });
+
+  it('Should call onChange callback when onwheel', () => {
+    const onChangeSpy = sinon.spy();
+    const instance = getDOMNode(<InputNumber onChange={onChangeSpy} />);
+    const input = instance.querySelector('.rs-input');
+
+    act(() => {
+      input.focus();
+      input.dispatchEvent(new WheelEvent('wheel', { deltaY: 10 }));
+    });
+
+    assert.isTrue(onChangeSpy.calledOnce);
+
+    act(() => {
+      input.focus();
+      input.dispatchEvent(new WheelEvent('wheel', { deltaY: -10 }));
+    });
+
+    assert.isTrue(onChangeSpy.calledTwice);
+  });
+
+  it('Should call onWheel callback', () => {
+    const onWheelSpy = sinon.spy();
+    const instance = getDOMNode(<InputNumber onWheel={onWheelSpy} />);
+    const input = instance.querySelector('.rs-input');
+
+    act(() => {
+      input.focus();
+      input.dispatchEvent(new WheelEvent('wheel', { deltaY: 10 }));
+    });
+
+    assert.isTrue(onWheelSpy.calledOnce);
   });
 
   it('Should call onChange callback when is control component', () => {
@@ -147,6 +172,28 @@ describe('InputNumber', () => {
 
   it('Should have a custom className prefix', () => {
     const instance = getDOMNode(<InputNumber classPrefix="custom-prefix" />);
-    assert.ok(instance.className.match(/\bcustom-prefix\b/));
+    assert.include(instance.className, 'custom-prefix');
+  });
+
+  describe('Plain text', () => {
+    it('Should render input value', () => {
+      const { getByTestId } = render(
+        <div data-testid="content">
+          <InputNumber value={1} plaintext />
+        </div>
+      );
+
+      expect(getByTestId('content')).to.have.text('1');
+    });
+
+    it('Should render "Unfilled" if value is empty', () => {
+      const { getByTestId } = render(
+        <div data-testid="content">
+          <InputNumber value={null} plaintext />
+        </div>
+      );
+
+      expect(getByTestId('content')).to.have.text('Unfilled');
+    });
   });
 });
