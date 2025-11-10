@@ -6,10 +6,11 @@ import getOffset from 'dom-lib/getOffset';
 import ProgressBar from './ProgressBar';
 import Handle from './Handle';
 import Graduated from './Graduated';
-import { useClassNames, useControlled, useCustom } from '../utils';
-import { precisionMath, checkValue } from './utils';
-import { WithAsProps, FormControlBaseProps } from '../@types/common';
-import Plaintext from '../Plaintext';
+import Plaintext from '@/internals/Plaintext';
+import { useClassNames, useControlled, useEventCallback } from '@/internals/hooks';
+import { useCustom } from '../CustomProvider';
+import { precisionMath, checkValue, getPosition } from './utils';
+import type { WithAsProps, FormControlBaseProps, Offset } from '@/internals/types';
 
 export interface LocaleType {
   placeholder?: string;
@@ -62,6 +63,9 @@ export interface SliderProps<T = number> extends WithAsProps, FormControlBasePro
   /** Show sliding progress bar */
   progress?: boolean;
 
+  /** Placeholder text */
+  placeholder?: React.ReactNode;
+
   /** Vertical Slide */
   vertical?: boolean;
 
@@ -76,6 +80,9 @@ export interface SliderProps<T = number> extends WithAsProps, FormControlBasePro
 
   /** Callback function that is fired when the mouseup is triggered. */
   onChangeCommitted?: (value: T, event: React.MouseEvent) => void;
+
+  /** If true, tooltip will always be visible  even without hover */
+  keepTooltipOpen?: boolean;
 }
 
 export const sliderPropTypes = {
@@ -104,7 +111,13 @@ export const sliderPropTypes = {
   getAriaValueText: PropTypes.func
 };
 
+/**
+ * A Slider is an interface for users to adjust a value in a specific range.
+ *
+ * @see https://rsuitejs.com/components/slider
+ */
 const Slider = React.forwardRef((props: SliderProps, ref) => {
+  const { propsWithDefaults } = useCustom('Slider', props);
   const {
     'aria-label': ariaLabel,
     'aria-labelledby': ariaLabelledby,
@@ -128,13 +141,15 @@ const Slider = React.forwardRef((props: SliderProps, ref) => {
     defaultValue = 0,
     value: valueProp,
     max: maxProp = 100,
+    placeholder,
     getAriaValueText,
     renderTooltip,
     renderMark,
     onChange,
     onChangeCommitted,
+    keepTooltipOpen,
     ...rest
-  } = props;
+  } = propsWithDefaults;
 
   const barRef = useRef<HTMLDivElement>(null);
   const { merge, withClassPrefix, prefix } = useClassNames(classPrefix);
@@ -142,7 +157,7 @@ const Slider = React.forwardRef((props: SliderProps, ref) => {
 
   const classes = merge(
     className,
-    withClassPrefix({ vertical, disabled, readOnly, graduated, 'with-mark': renderMark })
+    withClassPrefix({ vertical, disabled, graduated, 'with-mark': renderMark, readonly: readOnly })
   );
 
   const max = useMemo(
@@ -160,7 +175,10 @@ const Slider = React.forwardRef((props: SliderProps, ref) => {
     [max, min]
   );
 
-  const [value, setValue] = useControlled(getValidValue(valueProp), getValidValue(defaultValue)!);
+  const [value, setValue] = useControlled(
+    getValidValue(valueProp),
+    getValidValue(defaultValue) as number
+  );
   const count = useMemo(() => precisionMath((max - min) / step), [max, min, step]);
 
   // Get the height of the progress bar
@@ -193,11 +211,10 @@ const Slider = React.forwardRef((props: SliderProps, ref) => {
    * A value within the valid range is calculated from the position triggered by the event.
    */
   const getValueByPosition = useCallback(
-    (event: React.MouseEvent) => {
-      const barOffset = getOffset(barRef.current!)!;
-      const offset = vertical
-        ? barOffset.top + barOffset.height - event.pageY
-        : event.pageX - barOffset.left;
+    (event: React.MouseEvent | React.TouchEvent) => {
+      const barOffset = getOffset(barRef.current) as Offset;
+      const { pageX, pageY } = getPosition(event);
+      const offset = vertical ? barOffset.top + barOffset.height - pageY : pageX - barOffset.left;
       const offsetValue = rtl && !vertical ? barOffset.width - offset : offset;
 
       return getValueByOffset(offsetValue) + min;
@@ -208,71 +225,70 @@ const Slider = React.forwardRef((props: SliderProps, ref) => {
   /**
    * Callback function that is fired when the mousemove is triggered
    */
-  const handleChangeValue = useCallback(
-    (event: React.MouseEvent) => {
-      if (disabled || readOnly) {
-        return;
-      }
-      const nextValue: number = getValidValue(getValueByPosition(event))!;
-      setValue(nextValue);
-      onChange?.(nextValue, event);
-    },
-    [disabled, getValidValue, getValueByPosition, onChange, readOnly, setValue]
-  );
+  const handleChangeValue = useEventCallback((event: React.MouseEvent) => {
+    if (disabled || readOnly) {
+      return;
+    }
+
+    const nextValue = getValidValue(getValueByPosition(event)) as number;
+
+    setValue(nextValue);
+    onChange?.(nextValue, event);
+  });
 
   /**
    * Callback function that is fired when the mouseup is triggered
    */
-  const handleChangeCommitted = useCallback(
-    (event: React.MouseEvent) => {
-      if (disabled || readOnly) {
+  const handleChangeCommitted = useEventCallback((event: React.MouseEvent) => {
+    if (disabled || readOnly) {
+      return;
+    }
+
+    const nextValue = getValidValue(getValueByPosition(event)) as number;
+
+    onChangeCommitted?.(nextValue, event);
+  });
+
+  const handleClickBar = useEventCallback((event: React.MouseEvent) => {
+    handleChangeValue(event);
+    handleChangeCommitted(event);
+  });
+
+  const handleKeyDown = useEventCallback((event: React.KeyboardEvent) => {
+    let nextValue;
+    const increaseKey = rtl ? 'ArrowLeft' : 'ArrowRight';
+    const decreaseKey = rtl ? 'ArrowRight' : 'ArrowLeft';
+
+    switch (event.key) {
+      case 'Home':
+        nextValue = min;
+        break;
+      case 'End':
+        nextValue = max;
+        break;
+      case increaseKey:
+      case 'ArrowUp':
+        nextValue = Math.min(max, value + step);
+        break;
+
+      case decreaseKey:
+      case 'ArrowDown':
+        nextValue = Math.max(min, value - step);
+        break;
+      default:
         return;
-      }
-      const nextValue: number = getValidValue(getValueByPosition(event))!;
+    }
 
-      onChangeCommitted?.(nextValue, event);
-    },
-    [disabled, getValidValue, getValueByPosition, onChangeCommitted, readOnly]
-  );
+    // Prevent scroll of the page
+    event.preventDefault();
 
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      let nextValue;
-      const increaseKey = rtl ? 'ArrowLeft' : 'ArrowRight';
-      const decreaseKey = rtl ? 'ArrowRight' : 'ArrowLeft';
-
-      switch (event.key) {
-        case 'Home':
-          nextValue = min;
-          break;
-        case 'End':
-          nextValue = max;
-          break;
-        case increaseKey:
-        case 'ArrowUp':
-          nextValue = Math.min(max, value + step);
-          break;
-
-        case decreaseKey:
-        case 'ArrowDown':
-          nextValue = Math.max(min, value - step);
-          break;
-        default:
-          return;
-      }
-
-      // Prevent scroll of the page
-      event.preventDefault();
-
-      setValue(nextValue);
-      onChange?.(nextValue, event);
-    },
-    [max, min, onChange, rtl, setValue, step, value]
-  );
+    setValue(nextValue);
+    onChange?.(nextValue, event);
+  });
 
   if (plaintext) {
     return (
-      <Plaintext localeKey="notSelected" ref={ref}>
+      <Plaintext localeKey="notSelected" ref={ref} placeholder={placeholder}>
         {value}
       </Plaintext>
     );
@@ -280,7 +296,12 @@ const Slider = React.forwardRef((props: SliderProps, ref) => {
 
   return (
     <Componnet {...rest} ref={ref} className={classes} role="presentation">
-      <div ref={barRef} className={merge(barClassName, prefix('bar'))} onClick={handleChangeValue}>
+      <div
+        ref={barRef}
+        className={merge(barClassName, prefix('bar'))}
+        onClick={handleClickBar}
+        data-testid="slider-bar"
+      >
         {progress && (
           <ProgressBar
             rtl={rtl}
@@ -300,33 +321,33 @@ const Slider = React.forwardRef((props: SliderProps, ref) => {
           />
         )}
       </div>
-      {
-        <Handle
-          position={((value - min) / (max - min)) * 100}
-          className={handleClassName}
-          style={handleStyle}
-          disabled={disabled}
-          vertical={vertical}
-          tooltip={tooltip}
-          rtl={rtl}
-          value={value}
-          renderTooltip={renderTooltip}
-          onDragMove={handleChangeValue}
-          onKeyDown={handleKeyDown}
-          onDragEnd={handleChangeCommitted}
-          tabIndex={disabled || readOnly ? undefined : 0}
-          aria-orientation={vertical ? 'vertical' : 'horizontal'}
-          aria-valuenow={value}
-          aria-disabled={disabled}
-          aria-valuetext={getAriaValueText ? getAriaValueText(value) : ariaValuetext}
-          aria-label={ariaLabel}
-          aria-labelledby={ariaLabelledby}
-          aria-valuemax={max}
-          aria-valuemin={min}
-        >
-          {handleTitle}
-        </Handle>
-      }
+
+      <Handle
+        position={((value - min) / (max - min)) * 100}
+        className={handleClassName}
+        style={handleStyle}
+        disabled={disabled}
+        vertical={vertical}
+        tooltip={tooltip}
+        rtl={rtl}
+        value={value}
+        keepTooltipOpen={keepTooltipOpen}
+        renderTooltip={renderTooltip}
+        onDragMove={handleChangeValue}
+        onKeyDown={handleKeyDown}
+        onDragEnd={handleChangeCommitted}
+        tabIndex={disabled || readOnly ? undefined : 0}
+        aria-orientation={vertical ? 'vertical' : 'horizontal'}
+        aria-valuenow={value}
+        aria-disabled={disabled}
+        aria-valuetext={getAriaValueText ? getAriaValueText(value) : ariaValuetext}
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledby}
+        aria-valuemax={max}
+        aria-valuemin={min}
+      >
+        {handleTitle}
+      </Handle>
     </Componnet>
   );
 });

@@ -2,10 +2,10 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import Check from '@rsuite/icons/Check';
 import Close from '@rsuite/icons/Close';
-
-import { useClassNames } from '../utils';
-import { IconProps } from '@rsuite/icons/lib/Icon';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import { oneOf } from '@/internals/propTypes';
+import { useClassNames } from '@/internals/hooks';
+import { IconProps } from '@rsuite/icons/Icon';
+import { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
 
 const STEP_STATUS_ICON: {
   [key in NonNullable<StepItemProps['status']>]: React.ReactElement | null;
@@ -36,6 +36,11 @@ export interface StepItemProps extends WithAsProps {
   title?: React.ReactNode;
 }
 
+/**
+ * The `Step.Item` component is used to set the layout of the child element in the `Steps` component.
+ *
+ * @see https://rsuitejs.com/components/steps
+ */
 const StepItem: RsRefForwardingComponent<'div', StepItemProps> = React.forwardRef(
   (props: StepItemProps, ref) => {
     const {
@@ -89,7 +94,7 @@ StepItem.propTypes = {
   classPrefix: PropTypes.string,
   style: PropTypes.object,
   itemWidth: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-  status: PropTypes.oneOf(['finish', 'wait', 'process', 'error']),
+  status: oneOf(['finish', 'wait', 'process', 'error']),
   icon: PropTypes.object,
   stepNumber: PropTypes.number,
   description: PropTypes.node,

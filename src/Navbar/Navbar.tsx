@@ -2,8 +2,9 @@ import React from 'react';
 import NavbarBody from './NavbarBody';
 import NavbarHeader from './NavbarHeader';
 import NavbarBrand from './NavbarBrand';
-import { useClassNames } from '../utils';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import { useClassNames } from '@/internals/hooks';
+import { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
+import { useCustom } from '../CustomProvider';
 
 export const NavbarContext = React.createContext<boolean>(false);
 
@@ -26,15 +27,20 @@ interface NavbarComponent extends RsRefForwardingComponent<'div', NavbarProps> {
   Brand: typeof NavbarBrand;
 }
 
+/**
+ * The `Navbar` component is used to create a navigation header.
+ * @see https://rsuitejs.com/components/navbar
+ */
 const Navbar: NavbarComponent = React.forwardRef(
   (props: NavbarProps, ref: React.Ref<HTMLElement>) => {
+    const { propsWithDefaults } = useCustom('Navbar', props);
     const {
       className,
       as: Component = 'nav',
       classPrefix = 'navbar',
       appearance = 'default',
       ...rest
-    } = props;
+    } = propsWithDefaults;
     const { withClassPrefix, merge } = useClassNames(classPrefix);
     const classes = merge(className, withClassPrefix(appearance));
     return (

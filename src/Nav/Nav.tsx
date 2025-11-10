@@ -1,46 +1,83 @@
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import NavItem from './NavItem';
-import Dropdown from '../Dropdown';
-import { useClassNames } from '../utils';
+import NavContext, { NavContextProps } from './NavContext';
+import Menubar from '@/internals/Menu/Menubar';
+import NavDropdown from './NavDropdown';
+import NavMenu from './NavMenu';
+import NavDropdownItem from './NavDropdownItem';
+import NavDropdownMenu from './NavDropdownMenu';
+import AdaptiveNavItem from './AdaptiveNavItem';
+import { useClassNames, useEnsuredRef, useControlled } from '@/internals/hooks';
 import { NavbarContext } from '../Navbar/Navbar';
 import { SidenavContext } from '../Sidenav/Sidenav';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
-import NavContext from './NavContext';
-import useEnsuredRef from '../utils/useEnsuredRef';
-import Menubar from '../Menu/Menubar';
+import { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
+import { oneOf } from '@/internals/propTypes';
+import { deprecateComponent } from '@/internals/utils';
+import { useCustom } from '../CustomProvider';
 
 export interface NavProps<T = any>
   extends WithAsProps,
     Omit<React.HTMLAttributes<HTMLElement>, 'onSelect'> {
-  /** sets appearance */
-  appearance?: 'default' | 'subtle' | 'tabs';
+  /**
+   * The appearance style of the Nav component.
+   *
+   * @default 'default'
+   * @version 'pills' is supported in version 5.68.0
+   */
+  appearance?: 'default' | 'subtle' | 'tabs' | 'pills';
 
-  /** Reverse Direction of tabs/subtle */
+  /**
+   * Whether the Nav component is reversed.
+   */
   reversed?: boolean;
 
-  /** Justified navigation */
+  /**
+   * Whether the Nav component is justified.
+   */
   justified?: boolean;
 
-  /** Vertical navigation */
+  /**
+   * Whether the Nav component is vertical.
+   */
   vertical?: boolean;
 
-  /** appears on the right. */
+  /**
+   * Whether the Nav component is pulled to the right.
+   */
   pullRight?: boolean;
 
-  /** Active key, corresponding to eventkey in <Nav.item>. */
+  /**
+   * The active key of the Nav component.
+   */
   activeKey?: T;
 
-  /** Callback function triggered after selection */
+  /**
+   * The default active key of the Nav component.
+   */
+  defaultActiveKey?: T;
+
+  /**
+   * Event handler for selecting a Nav item.
+   */
   onSelect?: (eventKey: T | undefined, event: React.SyntheticEvent) => void;
 }
 
 interface NavComponent extends RsRefForwardingComponent<'div', NavProps> {
-  Dropdown: typeof Dropdown;
+  /**
+   * @deprecated Use <Nav.Menu> instead.
+   */
+  Dropdown: typeof NavDropdown;
   Item: typeof NavItem;
+  Menu: typeof NavMenu;
 }
 
+/**
+ * The `Nav` component is used to create navigation links.
+ * @see https://rsuitejs.com/components/nav
+ */
 const Nav: NavComponent = React.forwardRef((props: NavProps, ref: React.Ref<HTMLElement>) => {
+  const { propsWithDefaults } = useCustom('Nav', props);
   const {
     as: Component = 'div',
     classPrefix = 'nav',
@@ -52,9 +89,10 @@ const Nav: NavComponent = React.forwardRef((props: NavProps, ref: React.Ref<HTML
     className,
     children,
     activeKey: activeKeyProp,
+    defaultActiveKey,
     onSelect: onSelectProp,
     ...rest
-  } = props;
+  } = propsWithDefaults;
 
   const sidenav = useContext(SidenavContext);
 
@@ -80,20 +118,27 @@ const Nav: NavComponent = React.forwardRef((props: NavProps, ref: React.Ref<HTML
     })
   );
 
-  const { activeKey: activeKeyFromSidenav, onSelect: onSelectFromSidenav = onSelectProp } =
-    sidenav || {};
+  const { activeKey: activeKeyFromSidenav, onSelect: onSelectFromSidenav } = sidenav || {};
 
-  const activeKey = activeKeyProp ?? activeKeyFromSidenav;
+  const [activeKey, setActiveKey] = useControlled(
+    activeKeyProp ?? activeKeyFromSidenav,
+    defaultActiveKey
+  );
+  const contextValue = useMemo<NavContextProps>(
+    () => ({
+      activeKey,
+      onSelect: (eventKey: string | number | undefined, event: React.SyntheticEvent) => {
+        setActiveKey(eventKey);
+        onSelectProp?.(eventKey, event);
+        onSelectFromSidenav?.(eventKey, event);
+      }
+    }),
+    [activeKey, onSelectFromSidenav, onSelectProp, setActiveKey]
+  );
 
   if (sidenav?.expanded) {
     return (
-      <NavContext.Provider
-        value={{
-          withinNav: true,
-          activeKey,
-          onSelect: onSelectProp ?? onSelectFromSidenav
-        }}
-      >
+      <NavContext.Provider value={contextValue}>
         <ul ref={ref as any} className={classes} {...rest}>
           {children}
         </ul>
@@ -106,13 +151,7 @@ const Nav: NavComponent = React.forwardRef((props: NavProps, ref: React.Ref<HTML
   // If inside a collapsed <Sidenav>, render an ARIA `menubar` (vertical)
   if (sidenav) {
     return (
-      <NavContext.Provider
-        value={{
-          withinNav: true,
-          activeKey,
-          onSelect: onSelectProp ?? onSelectFromSidenav
-        }}
-      >
+      <NavContext.Provider value={contextValue}>
         <Menubar vertical={!!sidenav}>
           {(menubar, ref) => (
             <Component ref={ref} {...rest} className={classes} {...menubar}>
@@ -124,13 +163,7 @@ const Nav: NavComponent = React.forwardRef((props: NavProps, ref: React.Ref<HTML
     );
   }
   return (
-    <NavContext.Provider
-      value={{
-        withinNav: true,
-        activeKey,
-        onSelect: onSelectProp ?? onSelectFromSidenav
-      }}
-    >
+    <NavContext.Provider value={contextValue}>
       <Component {...rest} ref={menubarRef} className={classes}>
         {children}
         {hasWaterline && <div className={prefix('bar')} />}
@@ -139,15 +172,29 @@ const Nav: NavComponent = React.forwardRef((props: NavProps, ref: React.Ref<HTML
   );
 }) as unknown as NavComponent;
 
-Nav.Dropdown = Dropdown;
-Nav.Item = NavItem;
+const DeprecatedNavDropdown = deprecateComponent(
+  NavDropdown,
+  '<Nav.Dropdown> is deprecated, use <Nav.Menu> instead.'
+);
+DeprecatedNavDropdown.Menu = deprecateComponent(
+  NavDropdownMenu,
+  '<Nav.Dropdown.Menu> is deprecated, use <Nav.Menu> instead'
+);
+DeprecatedNavDropdown.Item = deprecateComponent(
+  NavDropdownItem,
+  '<Nav.Dropdown.Item> is deprecated, use <Nav.Item> instead'
+);
+
+Nav.Dropdown = DeprecatedNavDropdown;
+Nav.Item = AdaptiveNavItem;
+Nav.Menu = NavMenu;
 
 Nav.displayName = 'Nav';
 Nav.propTypes = {
   classPrefix: PropTypes.string,
   className: PropTypes.string,
   children: PropTypes.node,
-  appearance: PropTypes.oneOf(['default', 'subtle', 'tabs']),
+  appearance: oneOf(['default', 'subtle', 'tabs', 'pills']),
   // Reverse Direction of tabs/subtle
   reversed: PropTypes.bool,
   justified: PropTypes.bool,

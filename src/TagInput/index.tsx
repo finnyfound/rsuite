@@ -1,27 +1,31 @@
 import React, { useMemo } from 'react';
-import InputPicker, {
-  InputPickerProps,
-  InputPickerContext,
-  TriggerType
-} from '../InputPicker/InputPicker';
-import type { PickerComponent } from '../Picker/types';
-import type { TagProps } from '../Tag';
+import InputPicker, { InputPickerProps } from '../InputPicker/InputPicker';
+import { TagProvider, TagOnlyProps } from '../InputPicker/InputPickerContext';
+import { useCustom } from '../CustomProvider';
+import type { PickerComponent } from '@/internals/Picker/types';
 
-export interface TagInputProps extends InputPickerProps {
-  /**  Tag related props. */
-  tagProps?: TagProps;
+export type TagInputProps = Omit<InputPickerProps<readonly string[]>, 'data'> &
+  Partial<TagOnlyProps>;
 
-  /**
-   * Set the trigger for creating tags. only valid when creatable
-   */
-  trigger: TriggerType | TriggerType[];
-}
-
+/**
+ * The `TagInput` component is an enhancement of Input and supports input tags and management tags.
+ *
+ * @see https://rsuitejs.com/components/tag-input
+ */
 const TagInput: PickerComponent<TagInputProps> = React.forwardRef((props: TagInputProps, ref) => {
-  const { tagProps = {}, trigger = 'Enter', value, defaultValue, ...rest } = props;
+  const { propsWithDefaults } = useCustom('TagInput', props);
+  const {
+    tagProps = {},
+    trigger = 'Enter',
+    value,
+    defaultValue,
+    onTagRemove,
+    ...rest
+  } = propsWithDefaults;
+
   const contextValue = useMemo(
-    () => ({ multi: true, disabledOptions: true, trigger, tagProps }),
-    [tagProps, trigger]
+    () => ({ multi: true, disabledOptions: true, trigger, tagProps, onTagRemove }),
+    [onTagRemove, tagProps, trigger]
   );
 
   const data = useMemo(
@@ -30,9 +34,13 @@ const TagInput: PickerComponent<TagInputProps> = React.forwardRef((props: TagInp
   );
 
   return (
-    <InputPickerContext.Provider value={contextValue}>
+    <TagProvider value={contextValue}>
       <InputPicker
         {...rest}
+        aria-haspopup={false}
+        aria-expanded={undefined}
+        aria-controls={undefined}
+        aria-keyshortcuts={trigger}
         value={value}
         defaultValue={defaultValue}
         data={data}
@@ -40,7 +48,7 @@ const TagInput: PickerComponent<TagInputProps> = React.forwardRef((props: TagInp
         creatable
         ref={ref}
       />
-    </InputPickerContext.Provider>
+    </TagProvider>
   );
 });
 

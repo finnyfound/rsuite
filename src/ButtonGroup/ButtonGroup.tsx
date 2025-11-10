@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { useClassNames } from '../utils';
-import { WithAsProps, TypeAttributes, RsRefForwardingComponent } from '../@types/common';
+import { oneOf } from '@/internals/propTypes';
+import { useClassNames } from '@/internals/hooks';
+import { WithAsProps, TypeAttributes, RsRefForwardingComponent } from '@/internals/types';
+import { useCustom } from '../CustomProvider';
 import ButtonGroupContext from './ButtonGroupContext';
 
 export interface ButtonGroupProps extends WithAsProps {
@@ -28,8 +30,13 @@ export interface ButtonGroupProps extends WithAsProps {
   size?: TypeAttributes.Size;
 }
 
+/**
+ * The ButtonGroup component is used to group a series of buttons together in a single line or column.
+ * @see https://rsuitejs.com/components/button/#button-group
+ */
 const ButtonGroup: RsRefForwardingComponent<'div', ButtonGroupProps> = React.forwardRef(
   (props: ButtonGroupProps, ref) => {
+    const { propsWithDefaults } = useCustom('ButtonGroup', props);
     const {
       as: Component = 'div',
       classPrefix = 'btn-group',
@@ -41,13 +48,14 @@ const ButtonGroup: RsRefForwardingComponent<'div', ButtonGroupProps> = React.for
       justified,
       size,
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
     const { withClassPrefix, merge } = useClassNames(classPrefix);
     const classes = merge(className, withClassPrefix(size, { block, vertical, justified }));
+    const contextValue = useMemo(() => ({ size }), [size]);
 
     return (
-      <ButtonGroupContext.Provider value={{ size }}>
+      <ButtonGroupContext.Provider value={contextValue}>
         <Component {...rest} role={role} ref={ref} className={classes}>
           {children}
         </Component>
@@ -66,7 +74,7 @@ ButtonGroup.propTypes = {
   vertical: PropTypes.bool,
   justified: PropTypes.bool,
   role: PropTypes.string,
-  size: PropTypes.oneOf(['lg', 'md', 'sm', 'xs'])
+  size: oneOf(['lg', 'md', 'sm', 'xs'])
 };
 
 export default ButtonGroup;

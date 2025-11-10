@@ -1,4 +1,4 @@
-# Right-to-left
+# 从右到左 (RTL)
 
 为支持阿拉伯语和希伯来语等语言的习惯，对从右到左（RTL）读取的语言的 UI。
 
@@ -6,7 +6,7 @@
 
 ### 1.HTML 设置
 
-确保在 body 上设置了 dir 属性：
+确保在 html 上设置了 dir 属性：
 
 ```html
 <html dir="rtl"></html>

@@ -1,16 +1,20 @@
-import React, { useCallback, useContext } from 'react';
+import React, { useContext } from 'react';
 import PropTypes from 'prop-types';
-import { FormGroupContext } from '../FormGroup/FormGroup';
+import { useFormGroup } from '../FormGroup';
 import { InputGroupContext } from '../InputGroup/InputGroup';
-import Plaintext from '../Plaintext';
-import { createChainedFunction, TypeChecker, mergeRefs, useClassNames, KEY_VALUES } from '../utils';
+import Plaintext from '@/internals/Plaintext';
+import { KEY_VALUES } from '@/internals/constants';
+import { useClassNames } from '@/internals/hooks';
+import { createChainedFunction, mergeRefs } from '@/internals/utils';
 import {
   WithAsProps,
   RsRefForwardingComponent,
   TypeAttributes,
   FormControlBaseProps
-} from '../@types/common';
-import { PrependParameters } from '../@types/utils';
+} from '@/internals/types';
+import { refType, oneOf } from '@/internals/propTypes';
+import { PrependParameters } from '@/internals/types/utils';
+import { useCustom } from '../CustomProvider';
 
 export interface LocaleType {
   unfilled: string;
@@ -32,14 +36,31 @@ export interface InputProps
   /** Ref of input element */
   inputRef?: React.Ref<any>;
 
+  /**
+   * The htmlSize attribute defines the width of the <input> element.
+   *
+   * @see MDN https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/size
+   * @version 5.49.0
+   */
+  htmlSize?: number;
+
+  /**
+   * The callback function in which value is changed.
+   */
   onChange?: PrependParameters<React.ChangeEventHandler<HTMLInputElement>, [value: string]>;
 
   /** Called on press enter */
   onPressEnter?: React.KeyboardEventHandler<HTMLInputElement>;
 }
 
+/**
+ * The `<Input>` component is used to get user input in a text field.
+ *
+ * @see https://rsuitejs.com/components/input
+ */
 const Input: RsRefForwardingComponent<'input', InputProps> = React.forwardRef(
   (props: InputProps, ref) => {
+    const { propsWithDefaults } = useCustom('Input', props);
     const {
       className,
       classPrefix = 'input',
@@ -51,7 +72,9 @@ const Input: RsRefForwardingComponent<'input', InputProps> = React.forwardRef(
       inputRef,
       id,
       size,
+      htmlSize,
       plaintext,
+      placeholder,
       readOnly,
       onPressEnter,
       onFocus,
@@ -59,44 +82,38 @@ const Input: RsRefForwardingComponent<'input', InputProps> = React.forwardRef(
       onKeyDown,
       onChange,
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
-    const handleKeyDown = useCallback(
-      (event: React.KeyboardEvent<HTMLInputElement>) => {
-        if (event.key === KEY_VALUES.ENTER) {
-          onPressEnter?.(event);
-        }
-        onKeyDown?.(event);
-      },
-      [onPressEnter, onKeyDown]
-    );
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === KEY_VALUES.ENTER) {
+        onPressEnter?.(event);
+      }
+      onKeyDown?.(event);
+    };
 
-    const handleChange = useCallback(
-      (event: React.ChangeEvent<HTMLInputElement>) => {
-        onChange?.(event.target?.value, event);
-      },
-      [onChange]
-    );
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      onChange?.(event.target?.value, event);
+    };
 
     const { withClassPrefix, merge } = useClassNames(classPrefix);
     const classes = merge(className, withClassPrefix(size, { plaintext }));
     const inputGroupContext = useContext(InputGroupContext);
-    const formGroupContext = useContext(FormGroupContext);
+    const { controlId } = useFormGroup();
 
     // Make the Input component display in plain text,
     // and display default characters when there is no value.
     if (plaintext) {
       return (
-        <Plaintext ref={ref} localeKey="unfilled">
+        <Plaintext ref={ref} localeKey="unfilled" placeholder={placeholder}>
           {typeof value === 'undefined' ? defaultValue : value}
         </Plaintext>
       );
     }
 
-    const operable = !disabled && !readOnly;
+    const inputable = !disabled && !readOnly;
     const eventProps: React.HTMLAttributes<HTMLInputElement> = {};
 
-    if (operable) {
+    if (inputable) {
       eventProps.onChange = handleChange;
       eventProps.onKeyDown = handleKeyDown;
       eventProps.onFocus = createChainedFunction(onFocus, inputGroupContext?.onFocus);
@@ -110,11 +127,13 @@ const Input: RsRefForwardingComponent<'input', InputProps> = React.forwardRef(
         ref={mergeRefs(ref, inputRef)}
         className={classes}
         type={type}
-        id={id || formGroupContext?.controlId}
+        id={id || controlId}
         value={value}
         defaultValue={defaultValue}
         disabled={disabled}
         readOnly={readOnly}
+        size={htmlSize}
+        placeholder={placeholder}
       />
     );
   }
@@ -130,8 +149,8 @@ Input.propTypes = {
   disabled: PropTypes.bool,
   value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   defaultValue: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-  size: PropTypes.oneOf(['lg', 'md', 'sm', 'xs']),
-  inputRef: TypeChecker.refType,
+  size: oneOf(['lg', 'md', 'sm', 'xs']),
+  inputRef: refType,
   onChange: PropTypes.func,
   onFocus: PropTypes.func,
   onBlur: PropTypes.func,

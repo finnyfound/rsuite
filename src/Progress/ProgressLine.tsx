@@ -1,7 +1,10 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { useClassNames, PROGRESS_STATUS_ICON } from '../utils';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import { PROGRESS_STATUS_ICON } from '@/internals/constants/statusIcons';
+import { useClassNames } from '@/internals/hooks';
+import { oneOf } from '@/internals/propTypes';
+import { useCustom } from '../CustomProvider';
+import type { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
 
 export interface ProgressLineProps extends WithAsProps {
   /** Line color */
@@ -29,8 +32,13 @@ export interface ProgressLineProps extends WithAsProps {
   vertical?: boolean;
 }
 
+/**
+ * The `Progress.Line` component is used to display the progress of current operation.
+ * @see https://rsuitejs.com/components/progress/#line
+ */
 const ProgressLine: RsRefForwardingComponent<'div', ProgressLineProps> = React.forwardRef(
   (props: ProgressLineProps, ref) => {
+    const { propsWithDefaults } = useCustom('ProgressLine', props);
     const {
       as: Component = 'div',
       className,
@@ -44,7 +52,7 @@ const ProgressLine: RsRefForwardingComponent<'div', ProgressLineProps> = React.f
       classPrefix = 'progress',
       vertical,
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
     const { merge, prefix, withClassPrefix } = useClassNames(classPrefix);
 
@@ -105,7 +113,7 @@ ProgressLine.propTypes = {
   trailWidth: PropTypes.number,
   showInfo: PropTypes.bool,
   vertical: PropTypes.bool,
-  status: PropTypes.oneOf(['success', 'fail', 'active'])
+  status: oneOf(['success', 'fail', 'active'])
 };
 
 export default ProgressLine;

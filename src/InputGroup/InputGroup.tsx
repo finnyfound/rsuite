@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
-
 import InputGroupAddon from './InputGroupAddon';
 import InputGroupButton from './InputGroupButton';
-import { useClassNames } from '../utils';
-import { WithAsProps, TypeAttributes, RsRefForwardingComponent } from '../@types/common';
+import { useClassNames } from '@/internals/hooks';
+import { oneOf } from '@/internals/propTypes';
+import { WithAsProps, TypeAttributes, RsRefForwardingComponent } from '@/internals/types';
+import { useCustom } from '../CustomProvider';
 
 export const InputGroupContext = React.createContext<{
   onFocus: () => void;
@@ -30,7 +31,12 @@ export interface InputGroupComponent extends RsRefForwardingComponent<'div', Inp
   Button: typeof InputGroupButton;
 }
 
+/**
+ * The `InputGroup` component is used to specify an input field with an add-on.
+ * @see https://rsuitejs.com/components/input/#input-group
+ */
 const InputGroup: InputGroupComponent = React.forwardRef((props: InputGroupProps, ref) => {
+  const { propsWithDefaults } = useCustom('InputGroup', props);
   const {
     as: Component = 'div',
     classPrefix = 'input-group',
@@ -40,7 +46,7 @@ const InputGroup: InputGroupComponent = React.forwardRef((props: InputGroupProps
     size,
     children,
     ...rest
-  } = props;
+  } = propsWithDefaults;
   const [focus, setFocus] = useState(false);
 
   const handleFocus = useCallback(() => {
@@ -54,14 +60,17 @@ const InputGroup: InputGroupComponent = React.forwardRef((props: InputGroupProps
   const { withClassPrefix, merge } = useClassNames(classPrefix);
   const classes = merge(className, withClassPrefix(size, { inside, focus, disabled }));
 
-  const disabledChildren = () => {
+  const renderChildren = useCallback(() => {
     return React.Children.map(children, item => {
       if (React.isValidElement(item)) {
-        return React.cloneElement(item, { disabled: true });
+        if (React.isValidElement(item)) {
+          // Fix: Add type assertion to pass the disabled prop to the child element
+          return disabled ? React.cloneElement(item, { disabled } as { disabled?: boolean }) : item;
+        }
       }
       return item;
     });
-  };
+  }, [children, disabled]);
 
   const contextValue = useMemo(
     () => ({ onFocus: handleFocus, onBlur: handleBlur }),
@@ -71,7 +80,7 @@ const InputGroup: InputGroupComponent = React.forwardRef((props: InputGroupProps
   return (
     <InputGroupContext.Provider value={contextValue}>
       <Component {...rest} ref={ref} className={classes}>
-        {disabled ? disabledChildren() : children}
+        {renderChildren()}
       </Component>
     </InputGroupContext.Provider>
   );
@@ -84,7 +93,7 @@ InputGroup.propTypes = {
   children: PropTypes.node,
   disabled: PropTypes.bool,
   inside: PropTypes.bool,
-  size: PropTypes.oneOf(['lg', 'md', 'sm', 'xs'])
+  size: oneOf(['lg', 'md', 'sm', 'xs'])
 };
 
 InputGroup.Addon = InputGroupAddon;

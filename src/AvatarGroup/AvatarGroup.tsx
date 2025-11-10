@@ -1,23 +1,40 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { useClassNames, useCustom } from '../utils';
-import { TypeAttributes, WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import { useClassNames } from '@/internals/hooks';
+import { isIE } from '@/internals/utils';
+import { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
+import { oneOf } from '@/internals/propTypes';
+import { useCustom } from '../CustomProvider';
+
+export type Size = 'xxl' | 'xl' | 'lg' | 'md' | 'sm' | 'xs';
 
 export interface AvatarGroupProps extends WithAsProps {
-  /** Render all avatars as stacks */
+  /**
+   * Render all avatars as stacks
+   */
   stack?: boolean;
 
-  /** Set the spacing of the avatar */
+  /**
+   * Set the spacing of the avatar
+   */
   spacing?: number;
 
-  /** Set the size of all avatars. */
-  size?: TypeAttributes.Size;
+  /**
+   * Set the size of all avatars.
+   * @version xxl and xs added in v5.59.0
+   */
+  size?: Size;
 }
 
-export const AvatarGroupContext = React.createContext<{ size?: TypeAttributes.Size }>({});
+export const AvatarGroupContext = React.createContext<{ size?: Size; spacing?: number }>({});
 
+/**
+ * The AvatarGroup component is used to represent a collection of avatars.
+ * @see https://rsuitejs.com/components/avatar
+ */
 const AvatarGroup: RsRefForwardingComponent<'div', AvatarGroupProps> = React.forwardRef(
   (props: AvatarGroupProps, ref) => {
+    const { propsWithDefaults } = useCustom('AvatarGroup', props);
     const {
       as: Component = 'div',
       classPrefix = 'avatar-group',
@@ -26,24 +43,18 @@ const AvatarGroup: RsRefForwardingComponent<'div', AvatarGroupProps> = React.for
       children,
       stack,
       size,
+      style,
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
-    const { rtl } = useCustom('AvatarGroup');
     const { withClassPrefix, merge } = useClassNames(classPrefix);
     const classes = merge(className, withClassPrefix({ stack }));
+    const contextValue = useMemo(() => ({ size }), [size]);
+    const styles = isIE() ? style : { ...style, gap: spacing };
 
     return (
-      <Component {...rest} ref={ref} className={classes}>
-        <AvatarGroupContext.Provider value={{ size }}>
-          {spacing
-            ? React.Children.map(children as React.ReactElement[], child => {
-                return React.cloneElement(child, {
-                  style: { [rtl ? 'marginLeft' : 'marginRight']: spacing, ...child.props.style }
-                });
-              })
-            : children}
-        </AvatarGroupContext.Provider>
+      <Component role="group" {...rest} ref={ref} className={classes} style={styles}>
+        <AvatarGroupContext.Provider value={contextValue}>{children}</AvatarGroupContext.Provider>
       </Component>
     );
   }
@@ -57,7 +68,7 @@ AvatarGroup.propTypes = {
   children: PropTypes.node,
   stack: PropTypes.bool,
   spacing: PropTypes.number,
-  size: PropTypes.oneOf(['lg', 'md', 'sm', 'xs'])
+  size: oneOf(['lg', 'md', 'sm', 'xs'])
 };
 
 export default AvatarGroup;

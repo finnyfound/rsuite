@@ -1,7 +1,9 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { useClassNames } from '../utils';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import Heading from '../Heading';
+import { useClassNames } from '@/internals/hooks';
+import { useCustom } from '../CustomProvider';
+import type { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
 
 export interface PopoverProps extends WithAsProps {
   /** The title of the component. */
@@ -11,12 +13,19 @@ export interface PopoverProps extends WithAsProps {
   visible?: boolean;
 
   /** The content full the container */
-
   full?: boolean;
+
+  /** Whether show the arrow indicator */
+  arrow?: boolean;
 }
 
+/**
+ * The `Popover` component is used to display a popup window for a target component.
+ * @see https://rsuitejs.com/components/popover
+ */
 const Popover: RsRefForwardingComponent<'div', PopoverProps> = React.forwardRef(
   (props: PopoverProps, ref) => {
+    const { propsWithDefaults } = useCustom('Popover', props);
     const {
       as: Component = 'div',
       classPrefix = 'popover',
@@ -26,8 +35,9 @@ const Popover: RsRefForwardingComponent<'div', PopoverProps> = React.forwardRef(
       visible,
       className,
       full,
+      arrow = true,
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
     const { withClassPrefix, merge, prefix } = useClassNames(classPrefix);
     const classes = merge(className, withClassPrefix({ full }));
@@ -40,8 +50,12 @@ const Popover: RsRefForwardingComponent<'div', PopoverProps> = React.forwardRef(
 
     return (
       <Component role="dialog" {...rest} ref={ref} className={classes} style={styles}>
-        <div className={prefix`arrow`} aria-hidden />
-        {title && <h3 className={prefix`title`}>{title}</h3>}
+        {arrow && <div className={prefix`arrow`} aria-hidden />}
+        {title && (
+          <Heading level={3} className={prefix`title`}>
+            {title}
+          </Heading>
+        )}
         <div className={prefix`content`}>{children}</div>
       </Component>
     );
@@ -57,6 +71,7 @@ Popover.propTypes = {
   style: PropTypes.object,
   visible: PropTypes.bool,
   className: PropTypes.string,
-  full: PropTypes.bool
+  full: PropTypes.bool,
+  arrow: PropTypes.bool
 };
 export default Popover;

@@ -6,6 +6,8 @@
 // --------------------------------------------------
 
 .rs-form-group {
+  position: relative;
+
   .rs-form:not(.rs-form-inline) &:not(:last-child) {
     margin-bottom: @form-group-margin-bottom;
   }
@@ -24,6 +26,7 @@
 .rs-form-vertical .rs-form-group {
   .rs-form-control-label {
     display: block;
+    width: fit-content;
   }
 
   .rs-form-help-text:not(.rs-form-help-text-tooltip) {

@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import { useCustom } from '../CustomProvider';
+import type { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
 
 export interface SafeAnchorProps extends WithAsProps, React.HTMLAttributes<HTMLElement> {
   /** Link specified url */
@@ -14,9 +15,14 @@ function isTrivialHref(href: string | undefined) {
   return !href || href.trim() === '#';
 }
 
+/**
+ * A SafeAnchor is a wrapper around the `<a>` HTML element.
+ * @private
+ */
 const SafeAnchor: RsRefForwardingComponent<'a', SafeAnchorProps> = React.forwardRef(
   (props: SafeAnchorProps, ref) => {
-    const { as: Component = 'a', href, disabled, onClick, ...restProps } = props;
+    const { propsWithDefaults } = useCustom('SafeAnchor', props);
+    const { as: Component = 'a', href, disabled, onClick, ...restProps } = propsWithDefaults;
     const handleClick = useCallback(
       event => {
         if (disabled || isTrivialHref(href)) {

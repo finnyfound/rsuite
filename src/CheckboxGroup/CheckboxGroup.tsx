@@ -2,11 +2,13 @@ import React, { useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import cloneDeep from 'lodash/cloneDeep';
 import remove from 'lodash/remove';
-import { useClassNames, useControlled, shallowEqual } from '../utils';
-import Plaintext from '../Plaintext';
-import { WithAsProps, FormControlBaseProps, RsRefForwardingComponent } from '../@types/common';
-import type { ValueType } from '../Checkbox';
+import Plaintext from '@/internals/Plaintext';
+import { useClassNames, useControlled } from '@/internals/hooks';
+import { shallowEqual } from '@/internals/utils';
+import { WithAsProps, FormControlBaseProps, RsRefForwardingComponent } from '@/internals/types';
 import { CheckboxGroupContext } from './CheckboxGroupContext';
+import { useCustom } from '../CustomProvider';
+import type { ValueType } from '../Checkbox';
 
 export interface CheckboxGroupProps<V = ValueType[]> extends WithAsProps, FormControlBaseProps<V> {
   /** Used for the name of the form */
@@ -19,8 +21,13 @@ export interface CheckboxGroupProps<V = ValueType[]> extends WithAsProps, FormCo
   inline?: boolean;
 }
 
+/**
+ * The `CheckboxGroup` component is used for selecting multiple options which are unrelated.
+ * @see https://rsuitejs.com/components/checkbox/#checkbox-group
+ */
 const CheckboxGroup: RsRefForwardingComponent<'div', CheckboxGroupProps> = React.forwardRef(
   (props: CheckboxGroupProps, ref) => {
+    const { propsWithDefaults } = useCustom('CheckboxGroup', props);
     const {
       as: Component = 'div',
       className,
@@ -35,7 +42,7 @@ const CheckboxGroup: RsRefForwardingComponent<'div', CheckboxGroupProps> = React
       plaintext,
       onChange,
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
     const { merge, withClassPrefix } = useClassNames(classPrefix);
     const classes = merge(className, withClassPrefix({ inline }));

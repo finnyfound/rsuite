@@ -1,8 +1,11 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
-import { useClassNames, useCustom, guid, ReactChildren, useTimeout } from '../utils';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import { oneOf } from '@/internals/propTypes';
+import { useClassNames, useControlled, useUpdateEffect, useTimeout } from '@/internals/hooks';
+import { guid, ReactChildren, mergeRefs } from '@/internals/utils';
+import { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
+import { useCustom } from '../CustomProvider';
 
 export interface CarouselProps extends WithAsProps {
   /** Autoplay element */
@@ -17,7 +20,13 @@ export interface CarouselProps extends WithAsProps {
   /** Button shape */
   shape?: 'dot' | 'bar';
 
-  /** Callback fired when the active item changes */
+  /** Active element index */
+  activeIndex?: number;
+
+  /** Defaul initial index */
+  defaultActiveIndex?: number;
+
+  /** Callback fired when the active item manually changes */
   onSelect?: (index: number, event: React.ChangeEvent<HTMLInputElement>) => void;
 
   /** Callback fired when a slide transition starts */
@@ -27,8 +36,13 @@ export interface CarouselProps extends WithAsProps {
   onSlideEnd?: (index: number, event: React.TransitionEvent<HTMLDivElement>) => void;
 }
 
+/**
+ * The Carousel component is used to display a series of content.
+ * @see https://rsuitejs.com/components/carousel
+ */
 const Carousel: RsRefForwardingComponent<'div', CarouselProps> = React.forwardRef(
   (props: CarouselProps, ref) => {
+    const { rtl, propsWithDefaults } = useCustom('Carousel', props);
     const {
       as: Component = 'div',
       children,
@@ -38,34 +52,63 @@ const Carousel: RsRefForwardingComponent<'div', CarouselProps> = React.forwardRe
       shape = 'dot',
       autoplay,
       autoplayInterval = 4000,
+      activeIndex: activeIndexProp,
+      defaultActiveIndex = 0,
       onSelect,
       onSlideStart,
       onSlideEnd,
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
-    const { rtl } = useCustom('Carousel');
     const { prefix, merge, withClassPrefix } = useClassNames(classPrefix);
     const count = ReactChildren.count(children as React.ReactChildren);
     const labels: React.ReactElement[] = [];
     const vertical = placement === 'left' || placement === 'right';
     const lengthKey = vertical ? 'height' : 'width';
 
-    const [activeIndex, setActiveIndex] = useState(0);
+    const [activeIndex, setActiveIndex, isControlled] = useControlled(
+      activeIndexProp,
+      defaultActiveIndex
+    );
     const [lastIndex, setLastIndex] = useState(0);
+    const rootRef = useRef<HTMLDivElement>(null);
 
-    const handleSlide = (nextActiveIndex?: number, event?: React.ChangeEvent<HTMLInputElement>) => {
-      clear();
-      const index = nextActiveIndex ?? activeIndex + 1;
+    useUpdateEffect(() => {
+      // When the index is controlled, the index is not updated when the number of children changes.
+      if (isControlled) {
+        return;
+      }
+      // Reset the index when the number of children changes.
+      setActiveIndex(0);
+    }, [children, isControlled]);
 
-      // When index is greater than count, start from 1 again.
-      const nextIndex = index % count;
+    // Set a timer for automatic playback.
+    // `autoplay` needs to be cast to boolean type to avoid undefined parameters.
+    const { clear, reset } = useTimeout(
+      () => handleSlide(),
+      autoplayInterval,
+      !!autoplay && count > 1
+    );
 
-      setActiveIndex(nextIndex);
-      onSlideStart?.(nextIndex, event);
-      setLastIndex(nextActiveIndex == null ? activeIndex : nextIndex);
-      reset();
-    };
+    const handleSlide = useCallback(
+      (nextActiveIndex?: number, event?: React.ChangeEvent<HTMLInputElement>) => {
+        if (!rootRef.current) {
+          return;
+        }
+
+        clear();
+        const index = nextActiveIndex ?? activeIndex + 1;
+
+        // When index is greater than count, start from 1 again.
+        const nextIndex = index % count;
+
+        setActiveIndex(nextIndex);
+        onSlideStart?.(nextIndex, event);
+        setLastIndex(nextActiveIndex == null ? activeIndex : nextIndex);
+        reset();
+      },
+      [activeIndex, count, setActiveIndex, clear, onSlideStart, reset]
+    );
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       const activeIndex = +event.target.value;
@@ -80,12 +123,8 @@ const Carousel: RsRefForwardingComponent<'div', CarouselProps> = React.forwardRe
       [activeIndex, onSlideEnd]
     );
 
-    // Set a timer for automatic playback.
-    // `autoplay` needs to be cast to boolean type to avoid undefined parameters.
-    const { clear, reset } = useTimeout(handleSlide, autoplayInterval, !!autoplay && count > 1);
-
     const uniqueId = useMemo(() => guid(), []);
-    const items = React.Children.map(
+    const items = ReactChildren.map(
       children as React.ReactElement[],
       (child: React.ReactElement, index) => {
         if (!child) {
@@ -129,9 +168,10 @@ const Carousel: RsRefForwardingComponent<'div', CarouselProps> = React.forwardRe
     const showMask = count > 1 && activeIndex === 0 && activeIndex !== lastIndex;
 
     return (
-      <Component {...rest} ref={ref} className={classes}>
+      <Component {...rest} ref={mergeRefs(ref, rootRef)} className={classes}>
         <div className={prefix('content')}>
           <div
+            data-testid="carousel-slider"
             className={prefix('slider')}
             style={sliderStyles}
             onTransitionEnd={handleTransitionEnd}
@@ -165,10 +205,12 @@ Carousel.propTypes = {
   as: PropTypes.elementType,
   className: PropTypes.string,
   classPrefix: PropTypes.string,
+  activeIndex: PropTypes.number,
+  defaultActiveIndex: PropTypes.number,
   autoplay: PropTypes.bool,
   autoplayInterval: PropTypes.number,
-  placement: PropTypes.oneOf(['top', 'bottom', 'left', 'right']),
-  shape: PropTypes.oneOf(['dot', 'bar']),
+  placement: oneOf(['top', 'bottom', 'left', 'right']),
+  shape: oneOf(['dot', 'bar']),
   onSelect: PropTypes.func,
   onSlideStart: PropTypes.func,
   onSlideEnd: PropTypes.func

@@ -1,37 +1,38 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import pick from 'lodash/pick';
-import Input from '../Input';
-import { useClassNames, useControlled, PLACEMENT, mergeRefs, useIsMounted } from '../utils';
+import omit from 'lodash/omit';
+import { useClassNames, useControlled, useIsMounted, useEventCallback } from '@/internals/hooks';
+import { mergeRefs, partitionHTMLProps } from '@/internals/utils';
 import { animationPropTypes } from '../Animation/utils';
 import {
   PickerToggleTrigger,
   onMenuKeyDown,
-  DropdownMenu,
-  DropdownMenuItem,
-  PickerOverlay,
+  Listbox,
+  ListItem,
+  PickerPopup,
   useFocusItemValue,
-  usePublicMethods,
+  usePickerRef,
   pickTriggerPropKeys,
   PositionChildProps,
-  OverlayTriggerInstance,
   PickerComponent
-} from '../Picker';
-
+} from '@/internals/Picker';
+import { PLACEMENT } from '@/internals/constants';
+import Plaintext from '@/internals/Plaintext';
 import {
   WithAsProps,
   FormControlPickerProps,
   TypeAttributes,
   ItemDataType
-} from '../@types/common';
-
+} from '@/internals/types';
+import { oneOf } from '@/internals/propTypes';
 import { transformData, shouldDisplay } from './utils';
+import { useCustom } from '../CustomProvider';
+import Combobox from './Combobox';
 
-export type ValueType = string;
-
-export interface AutoCompleteProps<T = ValueType>
+export interface AutoCompleteProps<T = string>
   extends WithAsProps,
-    FormControlPickerProps<T, any, ItemDataType> {
+    FormControlPickerProps<T, any, ItemDataType | string> {
   /** Additional classes for menu */
   menuClassName?: string;
 
@@ -41,11 +42,20 @@ export interface AutoCompleteProps<T = ValueType>
   /** When set to false, the Enter key selection function is invalid */
   selectOnEnter?: boolean;
 
+  /** A component can have different sizes */
+  size?: TypeAttributes.Size;
+
   /** Open the menu and control it */
   open?: boolean;
 
   /** Placeholder text */
   placeholder?: string;
+
+  /** The width of the menu will automatically follow the width of the input box */
+  menuAutoWidth?: boolean;
+
+  /** AutoComplete Content */
+  autoComplete?: string;
 
   /** Custom filter function to determine whether the item will be displayed */
   filterBy?: (value: string, item: ItemDataType) => boolean;
@@ -79,11 +89,15 @@ export interface AutoCompleteProps<T = ValueType>
 }
 
 /**
+ * Autocomplete function of input field.
+ * @see https://rsuitejs.com/components/auto-complete
+ *
  * TODO: Remove unnecessary .rs-auto-complete element
  * TODO: role=combobox and aria-autocomplete on input element
  */
 const AutoComplete: PickerComponent<AutoCompleteProps> = React.forwardRef(
   (props: AutoCompleteProps, ref) => {
+    const { propsWithDefaults } = useCustom('AutoComplete', props);
     const {
       as: Component = 'div',
       disabled,
@@ -92,12 +106,16 @@ const AutoComplete: PickerComponent<AutoCompleteProps> = React.forwardRef(
       selectOnEnter = true,
       classPrefix = 'auto-complete',
       defaultValue = '',
+      menuAutoWidth = true,
       data,
       value: valueProp,
       open,
       style,
+      size,
       menuClassName,
       id,
+      readOnly,
+      plaintext,
       renderMenu,
       renderMenuItem,
       onSelect,
@@ -110,14 +128,14 @@ const AutoComplete: PickerComponent<AutoCompleteProps> = React.forwardRef(
       onBlur,
       onMenuFocus,
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
     const datalist = transformData(data);
     const [value, setValue] = useControlled(valueProp, defaultValue);
     const [focus, setFocus] = useState(false);
     const items = datalist?.filter(shouldDisplay(filterBy, value)) || [];
     const hasItems = items.length > 0;
-    const overlayRef = useRef<HTMLDivElement>(null);
+    const { trigger, overlay, root } = usePickerRef(ref);
     const isMounted = useIsMounted();
 
     // Used to hover the focuse item  when trigger `onKeydown`
@@ -127,12 +145,13 @@ const AutoComplete: PickerComponent<AutoCompleteProps> = React.forwardRef(
       onKeyDown: handleKeyDown
     } = useFocusItemValue(value, {
       data: datalist,
+      focusToOption: false,
       callback: onMenuFocus,
-      target: () => overlayRef.current
+      target: () => overlay.current
     });
 
     const handleKeyDownEvent = (event: React.KeyboardEvent) => {
-      if (!overlayRef.current) {
+      if (!overlay.current) {
         return;
       }
       onMenuKeyDown(event, {
@@ -160,19 +179,13 @@ const AutoComplete: PickerComponent<AutoCompleteProps> = React.forwardRef(
       handleClose();
     };
 
-    const handleSelect = useCallback(
-      (item: ItemDataType, event: React.SyntheticEvent) => {
-        onSelect?.(item.value, item, event);
-      },
-      [onSelect]
-    );
+    const handleSelect = useEventCallback((item: ItemDataType, event: React.SyntheticEvent) => {
+      onSelect?.(item.value, item, event);
+    });
 
-    const handleChangeValue = useCallback(
-      (value: any, event: React.SyntheticEvent) => {
-        onChange?.(value, event);
-      },
-      [onChange]
-    );
+    const handleChangeValue = useEventCallback((value: any, event: React.SyntheticEvent) => {
+      onChange?.(value, event);
+    });
 
     const handleChange = (value: string, event: React.FormEvent<HTMLInputElement>) => {
       setFocusItemValue('');
@@ -181,20 +194,20 @@ const AutoComplete: PickerComponent<AutoCompleteProps> = React.forwardRef(
       handleChangeValue(value, event);
     };
 
-    const handleClose = useCallback(() => {
+    const handleClose = useEventCallback(() => {
       if (isMounted()) {
         setFocus(false);
         onClose?.();
       }
-    }, [isMounted, onClose]);
+    });
 
-    const handleOpen = useCallback(() => {
+    const handleOpen = useEventCallback(() => {
       setFocus(true);
       onOpen?.();
-    }, [onOpen]);
+    });
 
-    const handleItemSelect = useCallback(
-      (nextItemValue: ValueType, item: ItemDataType, event: React.SyntheticEvent) => {
+    const handleItemSelect = useEventCallback(
+      (nextItemValue: string, item: ItemDataType, event: React.SyntheticEvent) => {
         setValue(nextItemValue);
         setFocusItemValue(nextItemValue);
         handleSelect(item, event);
@@ -203,78 +216,84 @@ const AutoComplete: PickerComponent<AutoCompleteProps> = React.forwardRef(
           handleChangeValue(nextItemValue, event);
         }
         handleClose();
-      },
-      [value, setValue, handleSelect, handleChangeValue, handleClose, setFocusItemValue]
+      }
     );
 
-    const handleInputFocus = useCallback(
-      (event: React.FocusEvent) => {
-        onFocus?.(event);
-        handleOpen();
-      },
-      [onFocus, handleOpen]
-    );
+    const handleInputFocus = useEventCallback((event: React.FocusEvent) => {
+      onFocus?.(event);
+      handleOpen();
+    });
 
-    const handleInputBlur = useCallback(
-      (event: React.FocusEvent) => {
-        setTimeout(handleClose, 300);
-        onBlur?.(event);
-      },
-      [onBlur, handleClose]
-    );
+    const handleInputBlur = useEventCallback((event: React.FocusEvent) => {
+      setTimeout(handleClose, 300);
+      onBlur?.(event);
+    });
 
     const { withClassPrefix, merge } = useClassNames(classPrefix);
     const classes = merge(className, withClassPrefix({ disabled }));
-    const triggerRef = useRef<OverlayTriggerInstance>(null);
+    const [htmlInputProps, restProps] = partitionHTMLProps(omit(rest, pickTriggerPropKeys));
 
-    usePublicMethods(ref, { triggerRef, overlayRef });
-
-    const renderDropdownMenu = (positionProps: PositionChildProps, speakerRef) => {
+    const renderPopup = (positionProps: PositionChildProps, speakerRef) => {
       const { left, top, className } = positionProps;
       const styles = { left, top };
 
       const menu = (
-        <DropdownMenu
-          id={id ? `${id}-listbox` : undefined}
+        <Listbox
           classPrefix="auto-complete-menu"
-          dropdownMenuItemClassPrefix="auto-complete-item"
-          dropdownMenuItemAs={DropdownMenuItem}
+          listItemClassPrefix="auto-complete-item"
+          listItemAs={ListItem}
           focusItemValue={focusItemValue}
           onSelect={handleItemSelect}
           renderMenuItem={renderMenuItem}
           data={items}
           className={menuClassName}
+          query={value}
         />
       );
 
       return (
-        <PickerOverlay
-          ref={mergeRefs(overlayRef, speakerRef)}
+        <PickerPopup
+          ref={mergeRefs(overlay, speakerRef)}
           style={styles}
           className={className}
           onKeyDown={handleKeyDownEvent}
-          target={triggerRef}
+          target={trigger}
+          autoWidth={menuAutoWidth}
         >
           {renderMenu ? renderMenu(menu) : menu}
-        </PickerOverlay>
+        </PickerPopup>
       );
     };
 
+    if (plaintext) {
+      return (
+        <Plaintext ref={ref} localeKey="unfilled">
+          {typeof value === 'undefined' ? defaultValue : value}
+        </Plaintext>
+      );
+    }
+
+    const expanded = open || (focus && hasItems);
+
     return (
       <PickerToggleTrigger
-        ref={triggerRef}
+        id={id}
+        ref={trigger}
         placement={placement}
         pickerProps={pick(props, pickTriggerPropKeys)}
         trigger={['click', 'focus']}
-        open={open || (focus && hasItems)}
-        speaker={renderDropdownMenu}
+        open={expanded}
+        speaker={renderPopup}
       >
-        <Component className={classes} style={style}>
-          <Input
-            {...rest}
-            id={id}
+        <Component className={classes} style={style} ref={root} {...restProps}>
+          <Combobox
+            {...(htmlInputProps as Omit<React.InputHTMLAttributes<any>, 'size'>)}
             disabled={disabled}
             value={value}
+            size={size}
+            readOnly={readOnly}
+            expanded={expanded}
+            focusItemValue={focusItemValue}
             onBlur={handleInputBlur}
             onFocus={handleInputFocus}
             onChange={handleChange}
@@ -298,16 +317,19 @@ AutoComplete.propTypes = {
   defaultValue: PropTypes.string,
   className: PropTypes.string,
   menuClassName: PropTypes.string,
-  placement: PropTypes.oneOf(PLACEMENT),
+  menuAutoWidth: PropTypes.bool,
+  placement: oneOf(PLACEMENT),
   onFocus: PropTypes.func,
   onMenuFocus: PropTypes.func,
   onBlur: PropTypes.func,
   onKeyDown: PropTypes.func,
   onOpen: PropTypes.func,
   onClose: PropTypes.func,
+  readOnly: PropTypes.bool,
   renderMenu: PropTypes.func,
   renderMenuItem: PropTypes.func,
   style: PropTypes.object,
+  size: oneOf(['lg', 'md', 'sm', 'xs']),
   open: PropTypes.bool,
   selectOnEnter: PropTypes.bool,
   filterBy: PropTypes.func

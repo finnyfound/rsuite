@@ -1,12 +1,11 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
-import DOMMouseMoveTracker from 'dom-lib/DOMMouseMoveTracker';
-import addStyle from 'dom-lib/addStyle';
-import getWidth from 'dom-lib/getWidth';
 import Tooltip from '../Tooltip';
-import { useClassNames, mergeRefs } from '../utils';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import { useClassNames } from '@/internals/hooks';
+import { mergeRefs } from '@/internals/utils';
+import { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
 import Input from './Input';
+import useDrag from './useDrag';
 
 export interface HandleProps extends WithAsProps, React.HTMLAttributes<HTMLDivElement> {
   disabled?: boolean;
@@ -21,6 +20,7 @@ export interface HandleProps extends WithAsProps, React.HTMLAttributes<HTMLDivEl
   onDragEnd?: (event: React.MouseEvent, dataset?: DOMStringMap) => void;
   'data-range'?: number[];
   'data-key'?: string;
+  keepTooltipOpen?: boolean;
 }
 
 const Handle: RsRefForwardingComponent<'div', HandleProps> = React.forwardRef(
@@ -46,85 +46,27 @@ const Handle: RsRefForwardingComponent<'div', HandleProps> = React.forwardRef(
       onKeyDown,
       'data-range': dataRange,
       'data-key': dateKey,
+      keepTooltipOpen,
       ...rest
     } = props;
-    const [active, setActive] = useState(false);
 
-    const rootRef = useRef<HTMLDivElement>(null);
+    const actualTooltip = tooltip || keepTooltipOpen;
+
     const horizontalKey = rtl ? 'right' : 'left';
     const direction = vertical ? 'bottom' : horizontalKey;
     const styles = { ...style, [direction]: `${position}%` };
     const { merge, prefix } = useClassNames(classPrefix);
-    const handleClasses = merge(className, prefix('handle'), { active });
 
-    const tooltipRef = useRef<HTMLDivElement>(null);
-    const mouseMoveTracker = useRef<DOMMouseMoveTracker | null>();
+    const { active, onMoveStart, onMouseEnter, rootRef, tooltipRef } = useDrag({
+      tooltip: actualTooltip,
+      disabled,
+      onDragStart,
+      onDragMove,
+      onDragEnd,
+      keepTooltipOpen
+    });
 
-    const releaseMouseMoves = useCallback(() => {
-      mouseMoveTracker.current?.releaseMouseMoves();
-      mouseMoveTracker.current = null;
-    }, []);
-
-    const setTooltipPosition = useCallback(() => {
-      const tooltipElement = tooltipRef.current;
-
-      if (tooltip && tooltipElement) {
-        const width = getWidth(tooltipElement);
-        addStyle(tooltipElement, 'left', `-${width / 2}px`);
-      }
-    }, [tooltip]);
-
-    const handleDragMove = useCallback(
-      (_deltaX: number, _deltaY: number, event: React.DragEvent) => {
-        if (mouseMoveTracker.current?.isDragging()) {
-          onDragMove?.(event, rootRef.current?.dataset);
-          setTooltipPosition();
-        }
-      },
-      [onDragMove, setTooltipPosition]
-    );
-
-    const handleDragEnd = useCallback(
-      (event: React.MouseEvent) => {
-        setActive(false);
-        releaseMouseMoves();
-        onDragEnd?.(event, rootRef.current?.dataset);
-      },
-      [onDragEnd, releaseMouseMoves]
-    );
-
-    const getMouseMoveTracker = useCallback(() => {
-      return (
-        mouseMoveTracker.current ||
-        new DOMMouseMoveTracker(handleDragMove, handleDragEnd, document.body)
-      );
-    }, [handleDragEnd, handleDragMove]);
-
-    const handleMouseDown = useCallback(
-      (event: React.MouseEvent) => {
-        if (disabled) {
-          return;
-        }
-        mouseMoveTracker.current = getMouseMoveTracker();
-        mouseMoveTracker.current?.captureMouseMoves(event);
-
-        rootRef.current?.focus();
-
-        setActive(true);
-        onDragStart?.(event);
-      },
-      [disabled, getMouseMoveTracker, onDragStart]
-    );
-
-    const handleMouseEnter = useCallback(() => {
-      setTooltipPosition();
-    }, [setTooltipPosition]);
-
-    useEffect(() => {
-      return () => {
-        releaseMouseMoves();
-      };
-    }, [releaseMouseMoves]);
+    const handleClasses = merge(className, prefix('handle'), { active: active || keepTooltipOpen });
 
     return (
       <Component
@@ -132,14 +74,16 @@ const Handle: RsRefForwardingComponent<'div', HandleProps> = React.forwardRef(
         tabIndex={tabIndex}
         ref={mergeRefs(ref, rootRef)}
         className={handleClasses}
-        onMouseDown={handleMouseDown}
-        onMouseEnter={handleMouseEnter}
+        onMouseDown={onMoveStart}
+        onMouseEnter={onMouseEnter}
+        onTouchStart={onMoveStart}
         onKeyDown={onKeyDown}
         style={styles}
         data-range={dataRange}
         data-key={dateKey}
+        data-testid="slider-handle"
       >
-        {tooltip && (
+        {actualTooltip && (
           <Tooltip
             aria-hidden="true"
             ref={tooltipRef}

@@ -2,16 +2,23 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import getHeight from 'dom-lib/getHeight';
 import on from 'dom-lib/on';
 import { ResizeObserver } from '@juggle/resize-observer';
+import { TypeAttributes } from '@/internals/types';
+
+export type ModalSize = TypeAttributes.Size | 'full' | number | string;
 
 export const useBodyStyles = (
   ref: React.RefObject<HTMLElement>,
-  options: { overflow: boolean; drawer: boolean; prefix: (...classes: any) => string }
-): [React.CSSProperties, (entering?: boolean) => void, () => void] => {
-  const [bodyStyles, setBodyStyles] = useState({});
-  const { overflow, drawer, prefix } = options;
+  options: {
+    overflow: boolean;
+    size?: ModalSize;
+    prefix: (...classes: any) => string;
+  }
+): [React.CSSProperties | null, (entering?: boolean) => void, () => void] => {
+  const [bodyStyles, setBodyStyles] = useState<React.CSSProperties | null>({});
+  const { overflow, prefix, size } = options;
   const windowResizeListener = useRef<any>();
   const contentElement = useRef<HTMLElement | null>(null);
-  const contentElementResizeObserver = useRef<ResizeObserver>();
+  const contentElementResizeObserver = useRef<ResizeObserver | null>();
 
   const updateBodyStyles = useCallback(
     (_event?: EventInit, entering?: boolean) => {
@@ -50,25 +57,39 @@ export const useBodyStyles = (
   const onDestroyEvents = useCallback(() => {
     windowResizeListener.current?.off?.();
     contentElementResizeObserver.current?.disconnect();
+    windowResizeListener.current = null;
+    contentElementResizeObserver.current = null;
   }, []);
 
   const onChangeBodyStyles = useCallback(
     (entering?: boolean) => {
-      if (overflow && !drawer) {
-        updateBodyStyles(undefined, entering);
-        contentElement.current = ref.current!.querySelector(`.${prefix('content')}`)!;
-        windowResizeListener.current = on(window, 'resize', updateBodyStyles);
+      if (!overflow || size === 'full') {
+        setBodyStyles(null);
+        return;
+      }
 
-        contentElementResizeObserver.current = new ResizeObserver(() => updateBodyStyles());
-        contentElementResizeObserver.current.observe(contentElement.current);
+      if (ref.current) {
+        updateBodyStyles(undefined, entering);
+
+        contentElement.current = ref.current.querySelector(`.${prefix('content')}`);
+
+        if (!windowResizeListener.current) {
+          windowResizeListener.current = on(window, 'resize', updateBodyStyles);
+        }
+
+        if (contentElement.current && !contentElementResizeObserver.current) {
+          contentElementResizeObserver.current = new ResizeObserver(() => updateBodyStyles());
+          contentElementResizeObserver.current.observe(contentElement.current);
+        }
       }
     },
-    [drawer, overflow, prefix, ref, updateBodyStyles]
+    [overflow, prefix, ref, size, updateBodyStyles]
   );
 
   useEffect(() => {
-    onDestroyEvents();
-  }, [onDestroyEvents]);
+    return onDestroyEvents;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  return [overflow ? bodyStyles : {}, onChangeBodyStyles, onDestroyEvents];
+  return [overflow ? bodyStyles : null, onChangeBodyStyles, onDestroyEvents];
 };

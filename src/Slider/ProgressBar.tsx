@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { useClassNames } from '../utils';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import { useClassNames } from '@/internals/hooks';
+import { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
 
 interface ProgressBarProps extends WithAsProps {
   vertical?: boolean;
@@ -32,7 +32,9 @@ const ProgressBar: RsRefForwardingComponent<'div', ProgressBarProps> = React.for
     const styles = { ...style, [startKey]: `${start}%`, [sizeKey]: `${end - start}%` };
     const classes = merge(className, withClassPrefix());
 
-    return <Component ref={ref} style={styles} className={classes} />;
+    return (
+      <Component ref={ref} style={styles} className={classes} data-testid="slider-progress-bar" />
+    );
   }
 );
 

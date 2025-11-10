@@ -3,13 +3,13 @@ const path = require('path');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const RtlCssPlugin = require('rtlcss-webpack-plugin');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
+const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const pkg = require('./package.json');
-const findPages = require('./scripts/findPages');
 const markdownRenderer = require('./scripts/markdownRenderer');
+const format = require('date-fns/format');
 
 const resolveToStaticPath = relativePath => path.resolve(__dirname, relativePath);
 const SVG_LOGO_PATH = resolveToStaticPath('./resources/images');
-const __DEV__ = process.env.NODE_ENV !== 'production';
 
 const {
   // 'production' on main branch
@@ -20,31 +20,28 @@ const {
 } = process.env;
 
 const __USE_SRC__ = VERCEL_ENV === 'preview' || VERCEL_ENV === 'local';
-
-const RSUITE_ROOT = path.join(__dirname, '../src');
-const LANGUAGES = {
-  // key: [language, path]
-  default: ['en', ''],
-  en: ['en', '/en'],
-  zh: ['zh', '/zh']
-};
-
-const getLanguage = language => LANGUAGES[language] || '';
-const babelBuildInclude = __USE_SRC__
-  ? [RSUITE_ROOT, path.join(__dirname, './')]
-  : [path.join(__dirname, './')];
+const __DEV__ = VERCEL_ENV === 'local';
+const BUILD_ID = format(new Date(), 'yyyyMMddHHmm');
 
 /**
  * @type {import('next').NextConfig}
  */
 module.exports = {
   env: {
-    DEV: __DEV__ ? 1 : 0,
-    VERSION: pkg.version
+    VERSION: pkg.version,
+    BUILD_ID
+  },
+  i18n: {
+    locales: ['en', 'zh'],
+    defaultLocale: 'en',
+    localeDetection: false
   },
   eslint: {
     // ESLint is ignored because it's already run in CI workflow
     ignoreDuringBuilds: true
+  },
+  experimental: {
+    externalDir: true
   },
   /**
    *
@@ -56,25 +53,15 @@ module.exports = {
     config.module.rules.unshift({
       test: /\.svg$/,
       include: SVG_LOGO_PATH,
+      issuer: /\.[jt]sx?$/,
       use: [
-        {
-          loader: 'babel-loader'
-        },
         {
           loader: '@svgr/webpack',
           options: {
-            babel: false,
             icon: true
           }
         }
       ]
-    });
-
-    config.module.rules.push({
-      test: /\.ts|tsx?$/,
-      use: ['babel-loader?babelrc'],
-      include: babelBuildInclude,
-      exclude: /node_modules/
     });
 
     config.module.rules.push({
@@ -117,22 +104,26 @@ module.exports = {
       test: /\.md$/,
       use: [
         {
-          loader: 'html-loader'
-        },
-        {
-          loader: 'markdown-loader',
+          loader: 'react-code-view/webpack-md-loader',
           options: {
-            pedantic: true,
-            renderer: markdownRenderer([
-              'javascript',
-              'bash',
-              'xml',
-              'css',
-              'less',
-              'json',
-              'diff',
-              'typescript'
-            ])
+            htmlOptions: {
+              // HTML Loader options
+              // See https://github.com/webpack-contrib/html-loader#options
+            },
+            markedOptions: {
+              renderer: markdownRenderer([
+                'javascript',
+                'bash',
+                'xml',
+                'css',
+                'less',
+                'json',
+                'diff',
+                'typescript'
+              ])
+              // Pass options to marked
+              // See https://marked.js.org/using_advanced#options
+            }
           }
         }
       ]
@@ -149,6 +140,10 @@ module.exports = {
       }),
       new RtlCssPlugin('static/css/[name]-rtl.css')
     );
+
+    if (__DEV__) {
+      config.plugins.push(new ForkTsCheckerWebpackPlugin());
+    }
 
     config.optimization.minimizer.push(
       /**
@@ -181,6 +176,7 @@ module.exports = {
     // preventing "more than one copy of React" error
     if (__USE_SRC__) {
       Object.assign(config.resolve.alias, {
+        '@/internals': path.resolve(__dirname, '../src/internals'),
         rsuite: path.resolve(__dirname, '../src'),
         react: path.resolve(__dirname, './node_modules/react'),
         'react-dom': path.resolve(__dirname, './node_modules/react-dom')
@@ -193,35 +189,28 @@ module.exports = {
     tsconfigPath: __USE_SRC__ ? './tsconfig.local.json' : './tsconfig.json'
   },
   trailingSlash: true,
-  exportPathMap: () => {
-    const pages = findPages();
-    const map = {};
-
-    function traverse(nextPages, userLanguage) {
-      const [language, rootPath] = getLanguage(userLanguage);
-
-      nextPages.forEach(page => {
-        if (page.children.length === 0) {
-          map[`${rootPath}${page.pathname}`] = {
-            page: page.pathname,
-            query: { userLanguage: language }
-          };
-          return;
-        }
-
-        traverse(page.children, userLanguage);
-      });
-    }
-
-    Object.keys(LANGUAGES).forEach(key => traverse(pages, key));
-
-    return map;
-  },
-  exclude: SVG_LOGO_PATH,
   onDemandEntries: {
     // Period (in ms) where the server will keep pages in the buffer
     maxInactiveAge: 120 * 1e3, // default 25s
     // Number of pages that should be kept simultaneously without being disposed
     pagesBufferLength: 3 // default 2
+  },
+  pageExtensions: ['tsx'],
+  redirects() {
+    return [
+      {
+        source: '/design/:theme(default|dark)',
+        destination: '/design/:theme/index.html',
+        permanent: true
+      }
+    ];
+  },
+  swcMinify: true,
+  images: {
+    remotePatterns: [
+      {
+        hostname: 'images.unsplash.com'
+      }
+    ]
   }
 };

@@ -1,21 +1,21 @@
-import { RsRefForwardingComponent, WithAsProps } from '../@types/common';
 import React, { useCallback, useContext, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { IconProps } from '@rsuite/icons/lib/Icon';
-import { SidenavContext } from '../Sidenav/Sidenav';
-import deprecatePropType from '../utils/deprecatePropType';
-import MenuItem from '../Menu/MenuItem';
+import classNames from 'classnames';
+import { IconProps } from '@rsuite/icons/Icon';
+import { deprecatePropType, deprecatePropTypeNew, oneOf } from '@/internals/propTypes';
+import MenuItem from '@/internals/Menu/MenuItem';
 import DropdownContext from './DropdownContext';
 import isNil from 'lodash/isNil';
-import { createChainedFunction, mergeRefs, shallowEqual, useClassNames } from '../utils';
-import { NavbarContext } from '../Navbar/Navbar';
-import SidenavDropdownItem from '../Sidenav/SidenavDropdownItem';
-import DisclosureContext, { DisclosureActionTypes } from '../Disclosure/DisclosureContext';
-import SafeAnchor from '../SafeAnchor';
+import pick from 'lodash/pick';
+import { useClassNames, useInternalId } from '@/internals/hooks';
+import { mergeRefs, shallowEqual, warnOnce } from '@/internals/utils';
 import NavContext from '../Nav/NavContext';
-import useInternalId from '../utils/useInternalId';
 import { DropdownActionType } from './DropdownState';
 import { useRenderDropdownItem } from './useRenderDropdownItem';
+import Nav from '../Nav';
+import Text from '../Text';
+import DropdownSeparator, { type DropdownSeparatorProps } from './DropdownSeparator';
+import type { RsRefForwardingComponent, WithAsProps } from '@/internals/types';
 
 export interface DropdownMenuItemProps<T = any>
   extends WithAsProps,
@@ -29,7 +29,11 @@ export interface DropdownMenuItemProps<T = any>
   /** You can use a custom element for this component */
   as?: React.ElementType;
 
-  /** Whether to display the divider */
+  /**
+   * Whether to display the divider
+   *
+   * @deprecated Use dedicated <Dropdown.Separator> component instead
+   */
   divider?: boolean;
 
   /** Disable the current option */
@@ -60,20 +64,29 @@ export interface DropdownMenuItemProps<T = any>
    */
   open?: boolean;
 
-  /** Select the callback function for the current option  */
+  /**
+   * The dropdown item keyboard shortcut.
+   *
+   * @version 5.58.0
+   */
+  shortcut?: React.ReactNode;
+
+  /**
+   * Select the callback function for the current option
+   */
   onSelect?: (eventKey: T, event: React.SyntheticEvent) => void;
 }
-
 /**
- * The <Dropdown.Item> API
- * When used inside <Sidenav>, renders a <TreeviewItem>
- * Otherwise renders a <MenuItem>
+ * The `<Dropdown.Item>` API
+ * - When used inside `<Sidenav>`, renders a `<TreeviewItem>`
+ * - Otherwise renders a `<MenuItem>`
  */
 const DropdownItem: RsRefForwardingComponent<'li', DropdownMenuItemProps> = React.forwardRef(
   (props: DropdownMenuItemProps, ref: React.Ref<any>) => {
     const {
       classPrefix = 'dropdown-item',
       className,
+      shortcut,
       active: activeProp,
       eventKey,
       onSelect,
@@ -100,24 +113,8 @@ const DropdownItem: RsRefForwardingComponent<'li', DropdownMenuItemProps> = Reac
       [onSelect, eventKey, dropdown]
     );
 
-    const sidenav = useContext(SidenavContext);
-    const navbar = useContext(NavbarContext);
-    const disclosure = useContext(DisclosureContext);
-
-    const [, dispatchDisclosure] = disclosure ?? [];
-
-    const handleClickNavbarDropdownItem = useCallback(
-      (event: React.SyntheticEvent) => {
-        dispatchDisclosure?.({ type: DisclosureActionTypes.Hide });
-        handleSelectItem?.(event);
-      },
-      [dispatchDisclosure, handleSelectItem]
-    );
-
     const selected =
-      activeProp ||
-      (!isNil(eventKey) &&
-        (shallowEqual(dropdown?.activeKey, eventKey) || shallowEqual(nav?.activeKey, eventKey)));
+      activeProp || (!isNil(eventKey) && shallowEqual(dropdown?.activeKey, eventKey));
 
     const dispatch = dropdown?.dispatch;
 
@@ -146,16 +143,20 @@ const DropdownItem: RsRefForwardingComponent<'li', DropdownMenuItemProps> = Reac
 
     const renderDropdownItem = useRenderDropdownItem(Component);
 
-    if (sidenav?.expanded) {
-      return <SidenavDropdownItem ref={ref} {...props} />;
+    // If using <Dropdown.Item> within <Nav>
+    // Suggest <Nav.Item>
+    if (nav) {
+      warnOnce(
+        'Usage of <Dropdown.Item> within <Nav> is deprecated. Replace with <Nav.Item> within <Nav.Menu>.'
+      );
+
+      return <Nav.Item ref={ref} {...props} />;
     }
+
     if (divider) {
-      return renderDropdownItem({
-        ref,
-        role: 'separator',
-        className: merge(prefix('divider'), className),
-        ...restProps
-      });
+      return (
+        <DropdownSeparator as="li" {...(pick(props, ['data-testid']) as DropdownSeparatorProps)} />
+      );
     }
 
     if (panel) {
@@ -165,43 +166,6 @@ const DropdownItem: RsRefForwardingComponent<'li', DropdownMenuItemProps> = Reac
         children,
         ...restProps
       });
-    }
-
-    if (navbar) {
-      const classes = merge(
-        className,
-        withClassPrefix({
-          'with-icon': icon,
-          disabled,
-          divider,
-          panel,
-          active: selected
-        })
-      );
-
-      const dataAttributes: { [key: string]: any } = {
-        'data-event-key': eventKey
-      };
-
-      if (!isNil(eventKey) && typeof eventKey !== 'string') {
-        dataAttributes['data-event-key-type'] = typeof eventKey;
-      }
-      return (
-        <li>
-          <SafeAnchor
-            ref={ref}
-            className={classes}
-            aria-current={selected || undefined}
-            {...dataAttributes}
-            {...restProps}
-            as={Component}
-            onClick={createChainedFunction(handleClickNavbarDropdownItem, restProps.onClick)}
-          >
-            {icon && React.cloneElement(icon, { className: prefix('menu-icon') })}
-            {children}
-          </SafeAnchor>
-        </li>
-      );
     }
 
     return (
@@ -235,8 +199,18 @@ const DropdownItem: RsRefForwardingComponent<'li', DropdownMenuItemProps> = Reac
             ...restProps,
             children: (
               <>
-                {icon && React.cloneElement(icon, { className: prefix('menu-icon') })}
-                {children}
+                {icon &&
+                  React.cloneElement(icon, {
+                    className: classNames(prefix('menu-icon'), icon.props.className)
+                  })}
+                <Text as="span" className={prefix('content')}>
+                  {children}
+                </Text>
+                {shortcut && (
+                  <Text as="kbd" className={prefix('shortcut')} muted>
+                    {shortcut}
+                  </Text>
+                )}
               </>
             )
           });
@@ -249,9 +223,9 @@ const DropdownItem: RsRefForwardingComponent<'li', DropdownMenuItemProps> = Reac
 DropdownItem.displayName = 'Dropdown.Item';
 DropdownItem.propTypes = {
   as: PropTypes.elementType,
-  divider: PropTypes.bool,
+  divider: deprecatePropTypeNew(PropTypes.bool, 'Use Dropdown.Separator component instead.'),
   panel: PropTypes.bool,
-  trigger: PropTypes.oneOfType([PropTypes.array, PropTypes.oneOf(['click', 'hover'])]),
+  trigger: PropTypes.oneOfType([PropTypes.array, oneOf(['click', 'hover'])]),
   open: deprecatePropType(PropTypes.bool),
   active: PropTypes.bool,
   disabled: PropTypes.bool,

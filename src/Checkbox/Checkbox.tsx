@@ -1,79 +1,133 @@
-import React, { useContext, useCallback } from 'react';
+import React, { useContext, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { useControlled, partitionHTMLProps, useClassNames, TypeChecker } from '../utils';
+import { useControlled, useClassNames, useEventCallback, useUniqueId } from '@/internals/hooks';
+import { partitionHTMLProps, mergeRefs } from '@/internals/utils';
 import { CheckboxGroupContext } from '../CheckboxGroup';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import { WithAsProps, RsRefForwardingComponent, TypeAttributes } from '@/internals/types';
+import { refType } from '@/internals/propTypes';
+import { useCustom } from '../CustomProvider';
 
 export type ValueType = string | number;
-export interface CheckboxProps<V = ValueType> extends WithAsProps {
-  /** HTML title */
-  title?: string;
+export interface CheckboxProps<V = ValueType>
+  extends WithAsProps,
+    Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {
+  /**
+   * The color of the checkbox when checked or indeterminate
+   *
+   * @version 5.56.0
+   */
+  color?: TypeAttributes.Color;
 
-  /** Inline layout */
-  inline?: boolean;
-
-  /** A checkbox can appear disabled and be unable to change states */
-  disabled?: boolean;
-
-  /** Make the control readonly */
-  readOnly?: boolean;
-
-  /** Render the control as plain text */
-  plaintext?: boolean;
-
-  /** Whether or not checkbox is checked. */
-  checked?: boolean;
-
-  /** The initial value of checked. */
-  defaultChecked?: boolean;
-
-  /** Whether or not checkbox is indeterminate. */
-  indeterminate?: boolean;
-
-  /** Attributes applied to the input element. */
-  inputProps?: React.HTMLAttributes<HTMLInputElement>;
-
-  /** Pass a ref to the input element. */
-  inputRef?: React.Ref<any>;
-
-  /** The HTML input value. */
-  value?: V;
-
-  /** A checkbox can receive focus. */
-  tabIndex?: number;
-
-  /** Whether to show checkbox */
+  /**
+   * Whether to show checkbox
+   *
+   * @private Used in MultiCascader
+   */
   checkable?: boolean;
 
-  /** Used for the name of the form */
+  /**
+   * A checkbox can appear disabled and be unable to change states
+   */
+  disabled?: boolean;
+
+  /**
+   * Make the control readonly
+   */
+  readOnly?: boolean;
+
+  /**
+   * Render the control as plain text
+   */
+  plaintext?: boolean;
+
+  /**
+   * Whether or not checkbox is checked.
+   */
+  checked?: boolean;
+
+  /**
+   * The initial value of checked.
+   */
+  defaultChecked?: boolean;
+
+  /**
+   * Whether or not checkbox is indeterminate.
+   */
+  indeterminate?: boolean;
+
+  /**
+   * Attributes applied to the input element.
+   */
+  inputProps?: React.HTMLAttributes<HTMLInputElement>;
+
+  /**
+   * Pass a ref to the input element.
+   */
+  inputRef?: React.Ref<any>;
+
+  /**
+   * Inline layout
+   *
+   * @private Used in CheckboxGroup
+   */
+  inline?: boolean;
+
+  /**
+   * The HTML input value.
+   */
+  value?: V;
+
+  /**
+   * Used for the name of the form
+   */
   name?: string;
 
-  /** Called when the user attempts to change the checked state. */
+  /**
+   * Whether the label is clickable
+   *
+   * @private Used in MultiCascader
+   */
+  labelClickable?: boolean;
+
+  /**
+   * Called when the user attempts to change the checked state.
+   */
   onChange?: (
     value: V | undefined,
     checked: boolean,
     event: React.ChangeEvent<HTMLInputElement>
   ) => void;
 
-  /** Called when the checkbox or label is clicked. */
+  /**
+   * Called when the checkbox or label is clicked.
+   */
   onClick?: (event: React.SyntheticEvent) => void;
 
-  /** Called when the checkbox is clicked. */
+  /**
+   * Called when the checkbox is clicked.
+   *
+   * @private Used in MultiCascader
+   */
   onCheckboxClick?: (event: React.SyntheticEvent) => void;
 }
 
+/**
+ * The Checkbox component is used for selecting multiple options from a set.
+ * @see https://rsuitejs.com/components/checkbox
+ */
 const Checkbox: RsRefForwardingComponent<'div', CheckboxProps> = React.forwardRef(
   (props: CheckboxProps, ref) => {
+    const { propsWithDefaults } = useCustom('Checkbox', props);
+    const checkboxGroupContext = useContext(CheckboxGroupContext);
+
     const {
       inline: inlineContext,
       name: nameContext,
       disabled: disabledContext,
       readOnly: readOnlyContext,
       plaintext: plaintextContext,
-      value: groupValue,
-      controlled,
       onChange: onGroupChange
-    } = useContext(CheckboxGroupContext);
+    } = checkboxGroupContext ?? {};
 
     const {
       as: Component = 'div',
@@ -82,11 +136,13 @@ const Checkbox: RsRefForwardingComponent<'div', CheckboxProps> = React.forwardRe
       children,
       classPrefix = 'checkbox',
       checkable = true,
-      defaultChecked,
+      color,
+      defaultChecked = false,
       title,
       inputRef,
       inputProps,
       indeterminate,
+      labelClickable = true,
       tabIndex = 0,
       disabled = disabledContext,
       readOnly = readOnlyContext,
@@ -98,39 +154,61 @@ const Checkbox: RsRefForwardingComponent<'div', CheckboxProps> = React.forwardRe
       onCheckboxClick,
       onChange,
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
-    const isChecked = useCallback(() => {
-      if (typeof groupValue !== 'undefined' && typeof value !== 'undefined') {
-        return groupValue.some(i => i === value);
+    const [selfChecked, setSelfChecked, selfControlled] = useControlled(
+      controlledChecked,
+      defaultChecked
+    );
+
+    // Either <Checkbox> is checked itself or by parent <CheckboxGroup>
+    const checked = useMemo(() => {
+      if (!checkboxGroupContext) {
+        return selfChecked;
       }
-      return controlledChecked;
-    }, [controlledChecked, groupValue, value]);
 
-    const [checked, setChecked] = useControlled(isChecked(), defaultChecked);
+      // fixme value from group should not be nullable
+      return checkboxGroupContext.value?.some(checkedValue => checkedValue === value) ?? false;
+    }, [checkboxGroupContext, selfChecked, value]);
+
     const { merge, prefix, withClassPrefix } = useClassNames(classPrefix);
-    const classes = merge(className, withClassPrefix({ inline, indeterminate, disabled, checked }));
+    const classes = merge(
+      className,
+      withClassPrefix(color, { inline, indeterminate, disabled, checked })
+    );
     const [htmlInputProps, restProps] = partitionHTMLProps(rest);
+
+    // If <Checkbox> is within a <CheckboxGroup>, it's bound to be controlled
+    // because its checked state is inferred from group's value, not retrieved from the DOM
+    const controlled = checkboxGroupContext ? true : selfControlled;
 
     if (typeof controlled !== 'undefined') {
       // In uncontrolled situations, use defaultChecked instead of checked
       htmlInputProps[controlled ? 'checked' : 'defaultChecked'] = checked;
     }
 
-    const handleChange = useCallback(
-      (event: React.ChangeEvent<HTMLInputElement>) => {
-        const nextChecked = !checked;
+    const checkboxRef = useRef<HTMLInputElement>(null);
 
-        if (disabled || readOnly) {
-          return;
-        }
+    const handleChange = useEventCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+      const nextChecked = event.target.checked;
 
-        setChecked(nextChecked);
-        onChange?.(value, nextChecked, event);
-        onGroupChange?.(value, nextChecked, event);
-      },
-      [checked, disabled, readOnly, setChecked, onChange, value, onGroupChange]
-    );
+      if (disabled || readOnly) {
+        return;
+      }
+
+      setSelfChecked(nextChecked);
+      onChange?.(value, nextChecked, event);
+      onGroupChange?.(value, nextChecked, event);
+    });
+
+    const handleLabelClick = useEventCallback((event: React.SyntheticEvent) => {
+      // Prevent check when label is not clickable
+      if (!labelClickable && event.target !== checkboxRef.current) {
+        event.preventDefault();
+      }
+    });
+
+    const labelId = useUniqueId('label-');
 
     if (plaintext) {
       return checked ? (
@@ -140,33 +218,36 @@ const Checkbox: RsRefForwardingComponent<'div', CheckboxProps> = React.forwardRe
       ) : null;
     }
 
-    const input = (
-      <span className={prefix`wrapper`} onClick={onCheckboxClick} aria-disabled={disabled}>
+    const control = (
+      <span className={prefix`control`}>
         <input
           {...htmlInputProps}
           {...inputProps}
+          aria-disabled={disabled}
+          aria-checked={indeterminate ? 'mixed' : checked}
+          aria-labelledby={labelId}
           name={name}
           value={value}
           type="checkbox"
-          ref={inputRef}
+          ref={mergeRefs(checkboxRef, inputRef)}
           tabIndex={tabIndex}
           readOnly={readOnly}
           disabled={disabled}
-          aria-disabled={disabled}
-          aria-checked={indeterminate ? 'mixed' : checked}
-          onClick={event => event.stopPropagation()}
+          onClick={onCheckboxClick}
           onChange={handleChange}
         />
-        <span className={prefix`inner`} aria-hidden role="presentation" />
+        <span className={prefix`inner`} aria-hidden data-testid="checkbox-control-inner" />
       </span>
     );
 
     return (
       <Component {...restProps} ref={ref} onClick={onClick} className={classes}>
         <div className={prefix`checker`}>
-          <label title={title}>
-            {checkable ? input : null}
-            {children}
+          <label title={title} onClick={handleLabelClick}>
+            {checkable ? control : null}
+            <span className={prefix`label`} id={labelId}>
+              {children}
+            </span>
           </label>
         </div>
       </Component>
@@ -177,22 +258,20 @@ const Checkbox: RsRefForwardingComponent<'div', CheckboxProps> = React.forwardRe
 Checkbox.displayName = 'Checkbox';
 Checkbox.propTypes = {
   as: PropTypes.elementType,
-  title: PropTypes.string,
-  className: PropTypes.string,
-  inline: PropTypes.bool,
-  disabled: PropTypes.bool,
   checked: PropTypes.bool,
-  defaultChecked: PropTypes.bool,
-  indeterminate: PropTypes.bool,
-  onChange: PropTypes.func,
-  onClick: PropTypes.func,
-  inputProps: PropTypes.any,
-  inputRef: TypeChecker.refType,
-  value: PropTypes.any,
+  checkable: PropTypes.bool,
+  className: PropTypes.string,
   children: PropTypes.node,
   classPrefix: PropTypes.string,
-  tabIndex: PropTypes.number,
-  checkable: PropTypes.bool,
+  disabled: PropTypes.bool,
+  defaultChecked: PropTypes.bool,
+  inline: PropTypes.bool,
+  indeterminate: PropTypes.bool,
+  inputProps: PropTypes.any,
+  inputRef: refType,
+  value: PropTypes.any,
+  onChange: PropTypes.func,
+  onClick: PropTypes.func,
   onCheckboxClick: PropTypes.func
 };
 

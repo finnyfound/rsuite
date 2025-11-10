@@ -1,7 +1,7 @@
-@import '../../styles/common';
-@import '../../styles//mixins/menu';
-@import '../../Ripple/styles/mixins';
-@import 'mixin';
+@import '../../styles/common.less';
+@import '../../styles//mixins/menu.less';
+@import '../../internals/Ripple/styles/mixins.less';
+@import './mixin.less';
 
 //
 // Sidenavs
@@ -12,14 +12,16 @@
 .rs-sidenav {
   transition: width @sidenav-collapse-transition-config;
   width: @sidenav-default-width;
+  display: flex;
+  flex-direction: column;
 }
 
 .rs-sidenav-nav {
   list-style: none;
   padding: 0;
 
-  > .rs-sidenav-item,
-  > .rs-dropdown .rs-dropdown-toggle,
+  .rs-sidenav-item,
+  .rs-dropdown-toggle,
   .rs-dropdown-item,
   .rs-dropdown-item-toggle {
     padding: @sidenav-padding-vertical @sidenav-padding-horizontal;
@@ -32,9 +34,66 @@
     });
   }
 
+  .rs-dropdown-item {
+    display: block;
+  }
+
   > .rs-sidenav-item,
   > .rs-dropdown {
     margin: 0 !important;
+  }
+
+  // <Dropdown> within <Sidenav>
+  > .rs-dropdown {
+    // Submenu toggle
+    .rs-dropdown-item-toggle {
+      display: block;
+      width: 100%;
+      text-align: start;
+      background: none;
+      padding-right: (@sidenav-padding-horizontal + @sidenav-dropdown-toggle-caret-width);
+      position: relative;
+      border-width: 0;
+
+      .rs-sidenav-collapse-in & {
+        padding-left: @sidenav-level2-retract;
+      }
+
+      &:focus {
+        outline: 0;
+      }
+
+      &:focus-visible {
+        .focus-ring(inset);
+
+        .high-contrast-mode({
+          .focus-ring(slim-inset);
+        });
+
+        z-index: 1;
+      }
+
+      // Submenu toggle icon
+      &-icon {
+        font-size: @sidenav-item-caret-size;
+        position: absolute;
+        right: @sidenav-padding-horizontal;
+        top: @sidenav-children-padding-vertical;
+        // width: auto;
+        // height: @sidenav-dropdown-toggle-caret-width;
+        // transform: rotate(90deg);
+      }
+    }
+
+    // Expanded submenu toggle icon
+    .rs-dropdown-item-expand-icon {
+      transform: rotate(270deg);
+    }
+
+    // Collapse submenu toggle icon
+    .rs-dropdown-item-collapse-icon {
+      transform: rotate(90deg);
+    }
   }
 
   .high-contrast-mode({
@@ -43,27 +102,6 @@
       border: none;
     }
   });
-
-  .rs-dropdown-item-toggle {
-    display: block;
-    width: 100%;
-    text-align: start;
-    background: none;
-
-    &:focus {
-      outline: 0;
-    }
-
-    &:focus-visible {
-      .focus-ring(inset);
-
-      .high-contrast-mode({
-        .focus-ring(slim-inset);
-      });
-
-      z-index: 1;
-    }
-  }
 
   .rs-sidenav-item:focus-visible {
     .focus-ring(inset);
@@ -90,6 +128,7 @@
     padding-right: (@sidenav-padding-horizontal + @sidenav-dropdown-toggle-caret-width);
 
     .rs-dropdown-toggle-caret {
+      font-size: @sidenav-item-caret-size;
       right: @sidenav-padding-horizontal;
       top: @sidenav-padding-vertical;
 
@@ -109,6 +148,12 @@
     padding-left: (@sidenav-padding-horizontal + @sidenav-icon-width + @sidenav-icon-spacing);
     width: 100%;
     white-space: normal;
+
+    // Sidenav is usually placed by the left/right edge of the page
+    // thus use an inset focus ring to prevent overflow clipping
+    &:focus-visible {
+      .focus-ring(inset);
+    }
 
     > .rs-icon:not(.rs-dropdown-toggle-caret) {
       font-size: @sidenav-level1-item-font-size;
@@ -138,8 +183,10 @@
   display: block;
   outline: 0;
   overflow: hidden;
+  text-decoration: none;
 
-  &:hover {
+  &:hover,
+  &:focus {
     text-decoration: none;
   }
 
@@ -148,6 +195,22 @@
     .focus-ring(slim-inset);
 
     z-index: 2;
+  }
+}
+
+// TODO Consider rename as sidenav-footer
+.rs-sidenav-toggle {
+  height: @sidenav-footer-height;
+  border-top: 1px solid;
+  margin-top: auto;
+
+  &-button {
+    float: right;
+    width: @sidenav-compact-width;
+    height: 100%;
+    border: none;
+    border-radius: 0;
+    color: inherit;
   }
 }
 
@@ -219,32 +282,17 @@
       transform: rotate(180deg);
     }
 
-    .rs-dropdown-item.rs-dropdown-item-expand
-      > .rs-dropdown-item-toggle
-      > .rs-dropdown-item-toggle-icon {
-      transform: rotate(270deg);
+    // Dropdown menu
+    .rs-dropdown-menu {
+      .reset-sidenav-dropdown-menu();
     }
 
-    // Dropdown menu
-    > .rs-dropdown-menu {
-      .reset-sidenav-dropdown-menu();
+    // Submenu
+    .rs-dropdown-item-submenu {
+      padding: 0;
 
-      // Submenu
-      .rs-dropdown-item-submenu {
-        padding: 0;
-
-        > .rs-dropdown-menu-toggle {
-          display: block;
-          padding-right: (@sidenav-padding-horizontal + @sidenav-dropdown-toggle-caret-width);
-        }
-
-        > .rs-dropdown-menu {
-          .reset-sidenav-dropdown-menu();
-        }
-
-        &:hover {
-          background-color: transparent;
-        }
+      &:hover {
+        background-color: transparent;
       }
     }
   }
@@ -277,21 +325,6 @@
   // @warn Here we can only use absolute positioning because of the limitations of using <Dropdown/> component.
 
   .rs-dropdown-item-submenu {
-    > .rs-dropdown-item-toggle {
-      padding-left: @sidenav-level2-retract;
-      padding-right: (@sidenav-padding-horizontal + @sidenav-dropdown-toggle-caret-width);
-      position: relative;
-
-      > .rs-dropdown-item-toggle-icon {
-        position: absolute;
-        right: @sidenav-padding-horizontal;
-        top: @sidenav-children-padding-vertical;
-        width: auto;
-        height: @sidenav-dropdown-toggle-caret-width;
-        transform: rotate(90deg);
-      }
-    }
-
     > .rs-dropdown-item-menu-icon {
       padding-top: @sidenav-children-padding-vertical;
       padding-bottom: @sidenav-children-padding-vertical;
@@ -336,7 +369,7 @@
     // supplement padding
     padding-left: @sidenav-default-width;
 
-    &:focus {
+    &:focus-visible {
       .focus-ring();
 
       .high-contrast-mode({
@@ -378,6 +411,7 @@
     .rs-dropdown .rs-dropdown-toggle,
     .rs-dropdown-item,
     .rs-dropdown-item-submenu > .rs-dropdown-menu-toggle {
+      white-space: nowrap;
       text-overflow: clip;
     }
   }
@@ -409,12 +443,14 @@
   color: var(--rs-sidenav-default-text);
 
   .rs-sidenav-item,
-  .rs-dropdown-toggle {
+  .rs-dropdown-toggle,
+  .rs-sidenav-toggle-button {
     background-color: var(--rs-sidenav-default-bg);
   }
 
   .rs-sidenav-item:hover,
   .rs-dropdown .rs-dropdown-toggle:hover,
+  .rs-sidenav-toggle-button:hover,
   .rs-dropdown.rs-dropdown-open .rs-dropdown-toggle {
     background-color: var(--rs-sidenav-default-hover-bg);
     color: var(--rs-sidenav-default-hover-text);
@@ -422,8 +458,12 @@
 
   .rs-sidenav-item.rs-sidenav-item-active,
   .rs-dropdown-item.rs-dropdown-item-active,
-  .rs-dropdown.rs-dropdown-selected-within .rs-dropdown-toggle-icon {
+  .rs-dropdown.rs-dropdown-selected-within .rs-sidenav-item-icon {
     color: var(--rs-sidenav-default-selected-text);
+  }
+
+  .rs-sidenav-toggle {
+    border-top-color: var(--rs-sidenav-default-footer-border);
   }
 
   // Collapsed
@@ -436,7 +476,6 @@
 
 .rs-sidenav-default.rs-sidenav-collapse-in,
 .rs-sidenav-default.rs-sidenav-collapsing {
-  .rs-dropdown-item:not(.rs-dropdown-item-submenu),
   .rs-dropdown-item > .rs-dropdown-menu-toggle,
   .rs-dropdown-item > .rs-dropdown-item-toggle {
     color: var(--rs-sidenav-default-text);
@@ -464,7 +503,7 @@
 .rs-sidenav-default.rs-sidenav-collapsing,
 .rs-sidenav-default.rs-sidenav-collapse-out {
   // Set active Level1 style
-  .rs-dropdown.rs-dropdown-selected-within .rs-dropdown-toggle-icon {
+  .rs-dropdown.rs-dropdown-selected-within .rs-sidenav-item-icon {
     color: var(--rs-sidenav-default-selected-text);
   }
 }
@@ -476,6 +515,7 @@
 
   .rs-sidenav-item,
   .rs-dropdown .rs-dropdown-toggle,
+  .rs-sidenav-toggle-button,
   .rs-dropdown-item-submenu:hover > .rs-dropdown-item-toggle {
     background-color: var(--rs-sidenav-inverse-bg);
 
@@ -487,7 +527,8 @@
 
   .rs-dropdown-item,
   .rs-dropdown-item > .rs-dropdown-menu-toggle,
-  .rs-dropdown-item > .rs-dropdown-item-toggle {
+  .rs-dropdown-item > .rs-dropdown-item-toggle,
+  .rs-sidenav-toggle-button {
     color: var(--rs-sidenav-inverse-text);
 
     &:hover,
@@ -523,27 +564,34 @@
   .rs-dropdown-item.rs-dropdown-item-active {
     background-color: var(--rs-sidenav-inverse-selected-bg);
   }
+
+  .rs-sidenav-toggle {
+    border-top-color: var(--rs-sidenav-inverse-footer-border);
+  }
 }
 
 // Subtle Sidenav
 .rs-sidenav-subtle {
   background-color: transparent;
-  color: var(--rs-sidenav-subtle-text);
 
   .rs-sidenav-item,
-  .rs-dropdown .rs-dropdown-toggle {
+  .rs-dropdown-toggle,
+  .rs-dropdown-item,
+  .rs-sidenav-toggle-button {
     background-color: transparent;
+    color: var(--rs-sidenav-subtle-text);
 
     &:hover,
-    &:focus {
-      background-color: transparent;
+    &:focus-visible {
+      background-color: var(--rs-sidenav-subtle-hover-bg);
       color: var(--rs-sidenav-subtle-hover-text);
     }
   }
 
   // Active
   .rs-sidenav-item.rs-sidenav-item-active,
-  .rs-dropdown.rs-dropdown-selected-within .rs-dropdown-toggle {
+  .rs-dropdown-item.rs-dropdown-item-active,
+  .rs-dropdown.rs-dropdown-selected-within .rs-sidenav-item-icon {
     color: var(--rs-sidenav-subtle-selected-text);
   }
 
@@ -555,17 +603,20 @@
       background-color: var(--rs-sidenav-subtle-hover-bg);
     }
   }
+
+  .rs-sidenav-toggle {
+    border-top-color: var(--rs-sidenav-subtle-footer-border);
+  }
 }
 
 .rs-sidenav-subtle.rs-sidenav-collapse-in,
 .rs-sidenav-subtle.rs-sidenav-collapsing {
-  .rs-dropdown-item:not(.rs-dropdown-item-submenu),
   .rs-dropdown-item > .rs-dropdown-menu-toggle,
   .rs-dropdown-item > .rs-dropdown-item-toggle {
     color: var(--rs-sidenav-subtle-text);
 
     &:hover,
-    &:focus {
+    &:focus-visible {
       background-color: var(--rs-sidenav-subtle-hover-bg);
       color: var(--rs-sidenav-subtle-hover-text);
     }
@@ -582,8 +633,6 @@
 .rs-sidenav-subtle.rs-sidenav-collapse-out {
   // Set active Level1 style
   .rs-dropdown.rs-dropdown-selected-within .rs-dropdown-toggle {
-    color: var(--rs-sidenav-subtle-text);
-
     &:hover {
       background-color: var(--rs-sidenav-subtle-hover-bg);
     }

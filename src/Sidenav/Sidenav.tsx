@@ -2,15 +2,16 @@ import React, { useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import remove from 'lodash/remove';
 import Transition from '../Animation/Transition';
-import shallowEqual from '../utils/shallowEqual';
 import SidenavBody from './SidenavBody';
 import SidenavHeader from './SidenavHeader';
 import SidenavToggle from './SidenavToggle';
-import { useClassNames, useControlled, mergeRefs } from '../utils';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
-import deprecatePropType from '../utils/deprecatePropType';
+import { useClassNames, useControlled } from '@/internals/hooks';
+import { useCustom } from '../CustomProvider';
+import { mergeRefs, shallowEqual } from '@/internals/utils';
+import { deprecatePropType, oneOf } from '@/internals/propTypes';
+import type { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
 
-export interface SidenavProps<T = string> extends WithAsProps {
+export interface SidenavProps<T = string | number> extends WithAsProps {
   /** Whether to expand the Sidenav */
   expanded?: boolean;
 
@@ -34,19 +35,25 @@ export interface SidenavProps<T = string> extends WithAsProps {
 
   /**
    * Select the callback function for the menu
-   * @deprecated Use <Sidenav onSelect> instead
+   * @deprecated Use <Nav onSelect> instead
    */
   onSelect?: (eventKey: T | undefined, event: React.SyntheticEvent) => void;
 }
 
 export const SidenavContext = React.createContext<SidenavContextType | null>(null);
 
-export interface SidenavContextType<T = string> {
+export interface SidenavContextType<T = string | number> {
   openKeys: T[];
-  activeKey: T | null;
+  /**
+   * @deprecated Use activeKey from NavContext instead
+   */
+  activeKey: T | undefined;
   sidenav: boolean;
   expanded: boolean;
   onOpenChange: (eventKey: T, event: React.SyntheticEvent) => void;
+  /**
+   * @deprecated Use onSelect from NavContext instead
+   */
   onSelect?: (eventKey: T | undefined, event: React.SyntheticEvent) => void;
 }
 
@@ -58,20 +65,25 @@ export interface SidenavComponent extends RsRefForwardingComponent<'div', Sidena
 
 const emptyArray = [];
 
+/**
+ * The `Sidenav` component is an encapsulation of the page sidebar `Nav`.
+ * @see https://rsuitejs.com/components/sidenav/
+ */
 const Sidenav: SidenavComponent = React.forwardRef((props: SidenavProps, ref) => {
+  const { propsWithDefaults } = useCustom('Sidenav', props);
   const {
     as: Component = 'nav',
     className,
     classPrefix = 'sidenav',
     appearance = 'default',
     expanded = true,
-    activeKey = null,
+    activeKey,
     defaultOpenKeys = emptyArray,
     openKeys: openKeysProp,
     onSelect,
     onOpenChange,
     ...rest
-  } = props;
+  } = propsWithDefaults;
 
   const [openKeys, setOpenKeys] = useControlled(openKeysProp, defaultOpenKeys);
   const { prefix, merge, withClassPrefix } = useClassNames(classPrefix);
@@ -142,7 +154,7 @@ Sidenav.propTypes = {
   classPrefix: PropTypes.string,
   className: PropTypes.string,
   expanded: PropTypes.bool,
-  appearance: PropTypes.oneOf(['default', 'inverse', 'subtle']),
+  appearance: oneOf(['default', 'inverse', 'subtle']),
   defaultOpenKeys: PropTypes.array,
   openKeys: PropTypes.array,
   onOpenChange: PropTypes.func,

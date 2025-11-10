@@ -1,12 +1,13 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { useClassNames, useTimeout, MESSAGE_STATUS_ICONS, useIsMounted } from '../utils';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
-import CloseButton from '../CloseButton';
-
-export type MessageType = 'info' | 'success' | 'warning' | 'error';
-
-type DisplayType = 'show' | 'hide' | 'hiding';
+import useDelayedClosure from '../toaster/hooks/useDelayedClosure';
+import CloseButton from '@/internals/CloseButton';
+import { MESSAGE_STATUS_ICONS } from '@/internals/constants/statusIcons';
+import { useClassNames, useIsMounted, useEventCallback } from '@/internals/hooks';
+import { oneOf } from '@/internals/propTypes';
+import { WithAsProps, TypeAttributes, RsRefForwardingComponent } from '@/internals/types';
+import { mergeRefs } from '@/internals/utils';
+import { useCustom } from '../CustomProvider';
 
 export interface NotificationProps extends WithAsProps {
   /** Title of the message */
@@ -16,6 +17,10 @@ export interface NotificationProps extends WithAsProps {
    * Delay automatic removal of messages.
    * When set to 0, the message is not automatically removed.
    * (Unit: milliseconds)
+   *
+   * @default 4500
+   * @deprecated Use `toaster.push(<Notification />, { duration: 4500 })` instead.
+   * @internal
    */
   duration?: number;
 
@@ -24,15 +29,25 @@ export interface NotificationProps extends WithAsProps {
    */
   closable?: boolean;
 
-  /** Type of message */
-  type?: MessageType;
+  /**
+   * Type of message
+   */
+  type?: TypeAttributes.Status;
 
-  /** Callback after the message is removed */
+  /**
+   * Callback after the message is removed
+   */
   onClose?: (event?: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
+/**
+ * The `Notification` component is used to display global messages and notifications.
+ *
+ * @see https://rsuitejs.com/components/notification
+ */
 const Notification: RsRefForwardingComponent<'div', NotificationProps> = React.forwardRef(
   (props: NotificationProps, ref) => {
+    const { propsWithDefaults } = useCustom('Notification', props);
     const {
       as: Component = 'div',
       classPrefix = 'notification',
@@ -44,31 +59,30 @@ const Notification: RsRefForwardingComponent<'div', NotificationProps> = React.f
       children,
       onClose,
       ...rest
-    } = props;
-    const [display, setDisplay] = useState<DisplayType>('show');
+    } = propsWithDefaults;
+
+    const [display, setDisplay] = useState<TypeAttributes.DisplayState>('show');
     const { withClassPrefix, merge, prefix } = useClassNames(classPrefix);
     const isMounted = useIsMounted();
+    const targetRef = React.useRef<HTMLDivElement>(null);
 
     // Timed close message
-    const { clear } = useTimeout(onClose, duration, duration > 0);
+    const { clear } = useDelayedClosure({ targetRef, onClose, duration });
 
     // Click to trigger to close the message
-    const handleClose = useCallback(
-      (event: React.MouseEvent<HTMLButtonElement>) => {
-        setDisplay('hiding');
-        onClose?.(event);
-        clear();
+    const handleClose = useEventCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+      setDisplay('hiding');
+      onClose?.(event);
+      clear();
 
-        setTimeout(() => {
-          if (isMounted()) {
-            setDisplay('hide');
-          }
-        }, 1000);
-      },
-      [onClose, clear, isMounted]
-    );
+      setTimeout(() => {
+        if (isMounted()) {
+          setDisplay('hide');
+        }
+      }, 1000);
+    });
 
-    const renderHeader = useCallback(() => {
+    const renderHeader = () => {
       if (!header) {
         return null;
       }
@@ -85,7 +99,7 @@ const Notification: RsRefForwardingComponent<'div', NotificationProps> = React.f
           )}
         </div>
       );
-    }, [header, type, prefix]);
+    };
 
     if (display === 'hide') {
       return null;
@@ -94,7 +108,7 @@ const Notification: RsRefForwardingComponent<'div', NotificationProps> = React.f
     const classes = merge(className, withClassPrefix(type, display, { closable }));
 
     return (
-      <Component role="alert" {...rest} ref={ref} className={classes}>
+      <Component role="alert" {...rest} ref={mergeRefs(targetRef, ref)} className={classes}>
         <div className={prefix`content`}>
           {renderHeader()}
           <div className={prefix('description')}>
@@ -115,7 +129,7 @@ Notification.propTypes = {
   closable: PropTypes.bool,
   classPrefix: PropTypes.string,
   className: PropTypes.string,
-  type: PropTypes.oneOf(['info', 'success', 'warning', 'error']),
+  type: oneOf(['info', 'success', 'warning', 'error']),
   onClose: PropTypes.func
 };
 

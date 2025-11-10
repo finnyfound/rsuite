@@ -1,17 +1,18 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import Attachment from '@rsuite/icons/legacy/Attachment';
+import Attachment from '@rsuite/icons/Attachment';
 import Reload from '@rsuite/icons/Reload';
-
-import { previewFile, useClassNames } from '../utils';
-import { FileType } from './Uploader';
-import { UploaderLocale } from '../locales';
-import CloseButton from '../CloseButton';
-import { WithAsProps } from '../@types/common';
+import CloseButton from '@/internals/CloseButton';
+import { oneOf } from '@/internals/propTypes';
+import { useClassNames } from '@/internals/hooks';
+import { previewFile } from './utils/previewFile';
+import type { FileType } from './Uploader';
+import type { WithAsProps } from '@/internals/types';
+import type { UploaderLocale } from '../locales';
 
 export interface UploadFileItemProps extends WithAsProps {
   file: FileType;
-  listType: 'text' | 'picture-text' | 'picture';
+  listType?: 'text' | 'picture-text' | 'picture';
   disabled?: boolean;
   className?: string;
   maxPreviewFileSize?: number;
@@ -119,7 +120,7 @@ const UploadFileItem = React.forwardRef<HTMLDivElement, UploadFileItemProps>((pr
       if (disabled) {
         return;
       }
-      onCancel?.(file.fileKey!, event);
+      onCancel?.(file.fileKey as number | string, event);
     },
     [disabled, file.fileKey, onCancel]
   );
@@ -156,7 +157,13 @@ const UploadFileItem = React.forwardRef<HTMLDivElement, UploadFileItemProps>((pr
 
   const renderPreview = () => {
     const thumbnail = previewImage ? (
-      <img role="presentation" src={previewImage} alt={file.name} onClick={handlePreview} />
+      <img
+        role="presentation"
+        src={previewImage}
+        alt={file.name}
+        onClick={handlePreview}
+        aria-label={`Preview: ${file.name}`}
+      />
     ) : (
       <Attachment className={prefix('icon')} />
     );
@@ -178,7 +185,7 @@ const UploadFileItem = React.forwardRef<HTMLDivElement, UploadFileItemProps>((pr
     if (uploading) {
       return (
         <div className={classes}>
-          <i className={prefix('icon')} />
+          <i className={prefix('icon')} aria-label="Uploading" />
         </div>
       );
     }
@@ -202,7 +209,21 @@ const UploadFileItem = React.forwardRef<HTMLDivElement, UploadFileItemProps>((pr
       return null;
     }
 
-    return <CloseButton className={prefix('btn-remove')} onClick={handleRemove} />;
+    let closeLabel = 'Remove file';
+
+    if (locale?.removeFile) {
+      closeLabel = locale?.removeFile + (file?.name ? `: ${file?.name}` : '');
+    }
+
+    return (
+      <CloseButton
+        className={prefix('btn-remove')}
+        onClick={handleRemove}
+        tabIndex={-1}
+        locale={{ closeLabel }}
+        aria-hidden={disabled}
+      />
+    );
   };
 
   /**
@@ -214,7 +235,7 @@ const UploadFileItem = React.forwardRef<HTMLDivElement, UploadFileItemProps>((pr
         <div className={prefix('status')}>
           {<span>{locale?.error}</span>}
           {allowReupload && (
-            <a role="button" tabIndex={-1} onClick={handleReupload}>
+            <a role="button" tabIndex={-1} onClick={handleReupload} aria-label="Retry">
               <Reload className={prefix('icon-reupload')} />
             </a>
           )}
@@ -239,7 +260,12 @@ const UploadFileItem = React.forwardRef<HTMLDivElement, UploadFileItemProps>((pr
    */
   const renderFilePanel = () => {
     const fileElement = (
-      <div className={prefix('title')} onClick={handlePreview}>
+      <div
+        className={prefix('title')}
+        tabIndex={-1}
+        onClick={handlePreview}
+        aria-label={`Preview: ${file.name}`}
+      >
         {file.name}
       </div>
     );
@@ -291,7 +317,7 @@ UploadFileItem.displayName = 'UploadFileItem';
 UploadFileItem.propTypes = {
   locale: PropTypes.any,
   file: PropTypes.object.isRequired,
-  listType: PropTypes.oneOf(['text', 'picture-text', 'picture'] as const).isRequired,
+  listType: oneOf(['text', 'picture-text', 'picture'] as const),
   disabled: PropTypes.bool,
   className: PropTypes.string,
   maxPreviewFileSize: PropTypes.number,

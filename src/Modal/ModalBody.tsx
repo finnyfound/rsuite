@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import PropTypes from 'prop-types';
-import { useClassNames } from '../utils';
+import { useClassNames } from '@/internals/hooks';
 import { ModalContext } from './ModalContext';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
 import IconButton from '../IconButton';
 import Close from '@rsuite/icons/Close';
 
@@ -21,26 +21,31 @@ const ModalBody: RsRefForwardingComponent<'div', ModalBodyProps> = React.forward
     const { withClassPrefix, merge, prefix } = useClassNames(classPrefix);
     const classes = merge(className, withClassPrefix());
 
+    const context = useContext(ModalContext);
+    const { getBodyStyles, closeButton, onModalClose } = context || {};
+    const bodyStyles = getBodyStyles?.();
+    let buttonElement: React.ReactNode = null;
+
+    if (closeButton) {
+      buttonElement =
+        typeof closeButton === 'boolean' ? (
+          <IconButton
+            icon={<Close />}
+            appearance="subtle"
+            size="sm"
+            className={prefix('close')}
+            onClick={onModalClose}
+          />
+        ) : (
+          closeButton
+        );
+    }
+
     return (
-      <ModalContext.Consumer>
-        {context => {
-          const bodyStyles = context?.getBodyStyles?.();
-          return (
-            <Component {...rest} ref={ref} style={{ ...bodyStyles, ...style }} className={classes}>
-              {context?.isDrawer && (
-                <IconButton
-                  icon={<Close />}
-                  appearance="subtle"
-                  size="sm"
-                  className={prefix('close')}
-                  onClick={context?.onModalClose}
-                />
-              )}
-              {children}
-            </Component>
-          );
-        }}
-      </ModalContext.Consumer>
+      <Component {...rest} ref={ref} style={{ ...bodyStyles, ...style }} className={classes}>
+        {buttonElement}
+        {children}
+      </Component>
     );
   }
 );

@@ -1,4 +1,5 @@
-@import '../../styles/common';
+@import '../../styles/common.less';
+@import '../../internals/CloseButton/styles/index.less';
 
 //
 // Tags
@@ -17,20 +18,8 @@
 
   &-icon-close {
     position: absolute;
-    font-size: 12px;
-  }
-
-  &-default &-icon-close:hover {
-    color: var(--rs-tag-close);
-  }
-
-  &-group {
-    margin: (-1 * @tag-gap) 0 0 (-1 * @tag-gap);
-  }
-
-  &-group > & {
-    margin-top: @tag-gap;
-    margin-left: @tag-gap;
+    top: 0;
+    right: 0;
   }
 
   &-lg {

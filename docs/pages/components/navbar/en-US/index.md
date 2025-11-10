@@ -2,17 +2,16 @@
 
 For navigation at the top of the page.
 
-- `<Navbar>` The navigation bar component.
-- `<Navbar.Header>` Sets the navigation bar header information.
-- `<Navbar.Body>` Sets the contents of the navigation bar.
-
 ## Usage
 
-<!--{include:(components/navbar/fragments/import.md)}-->
+<!--{include:<import-guide>}-->
+
+- `<Navbar>` The navigation bar component.
+- `<Navbar.Brand>` Set a brand, which can be your company, product or project name.
 
 ## Examples
 
-### Default
+### Basic
 
 <!--{include:`basic.md`}-->
 
@@ -28,8 +27,8 @@ For navigation at the top of the page.
 
 ### `<Navbar>`
 
-| Property    | Type `(Default)`                                  | Description                                          |
-| ----------- | ------------------------------------------------- | ---------------------------------------------------- |
-| as          | ElementType `('div')`                             | You can use a custom element type for this component |
-| appearance  | enum: 'default', 'inverse', 'subtle'`('default')` | The appearance of the navigation bar                 |
-| classPrefix | string `('navbar')`                               | The prefix of the component CSS class                |
+| Property    | Type `(Default)`                                        | Description                                          |
+| ----------- | ------------------------------------------------------- | ---------------------------------------------------- |
+| as          | ElementType `('div')`                                   | You can use a custom element type for this component |
+| appearance  | 'default' &#124; 'inverse' &#124; 'subtle'`('default')` | The appearance of the navigation bar                 |
+| classPrefix | string `('navbar')`                                     | The prefix of the component CSS class                |

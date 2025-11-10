@@ -1,7 +1,10 @@
 import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { useClassNames, PROGRESS_STATUS_ICON } from '../utils';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import { PROGRESS_STATUS_ICON } from '@/internals/constants/statusIcons';
+import { useClassNames } from '@/internals/hooks';
+import { oneOf } from '@/internals/propTypes';
+import { useCustom } from '../CustomProvider';
+import type { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
 
 export interface ProgressCircleProps extends WithAsProps {
   /** Line color */
@@ -22,6 +25,9 @@ export interface ProgressCircleProps extends WithAsProps {
   /** Tail width */
   trailWidth?: number;
 
+  /** Diameter of the circle */
+  width?: number;
+
   /** Circular progress bar degree */
   gapDegree?: number;
 
@@ -35,12 +41,18 @@ export interface ProgressCircleProps extends WithAsProps {
   status?: 'success' | 'fail' | 'active';
 }
 
+/**
+ * The `Progress.Circle` component is used to display the progress of current operation.
+ * @see https://rsuitejs.com/components/progress/#circle
+ */
 const ProgressCircle: RsRefForwardingComponent<'div', ProgressCircleProps> = React.forwardRef(
   (props: ProgressCircleProps, ref) => {
+    const { propsWithDefaults } = useCustom('ProgressCircle', props);
     const {
       as: Component = 'div',
       strokeWidth = 6,
       trailWidth = 6,
+      width,
       percent = 0,
       strokeLinecap = 'round',
       className,
@@ -53,7 +65,7 @@ const ProgressCircle: RsRefForwardingComponent<'div', ProgressCircleProps> = Rea
       trailColor,
       strokeColor,
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
     const getPathStyles = useCallback(() => {
       const radius = 50 - strokeWidth / 2;
@@ -132,7 +144,7 @@ const ProgressCircle: RsRefForwardingComponent<'div', ProgressCircleProps> = Rea
       >
         {showInfo ? <span className={prefix('circle-info')}>{info}</span> : null}
 
-        <svg className={prefix('svg')} viewBox="0 0 100 100" {...rest}>
+        <svg className={prefix('svg')} viewBox="0 0 100 100" width={width} {...rest}>
           <path
             className={prefix('trail')}
             d={pathString}
@@ -158,15 +170,16 @@ ProgressCircle.displayName = 'ProgressCircle';
 ProgressCircle.propTypes = {
   className: PropTypes.string,
   strokeColor: PropTypes.string,
-  strokeLinecap: PropTypes.oneOf(['butt', 'round', 'square']),
+  strokeLinecap: oneOf(['butt', 'round', 'square']),
   trailColor: PropTypes.string,
   percent: PropTypes.number,
   strokeWidth: PropTypes.number,
   trailWidth: PropTypes.number,
+  width: PropTypes.number,
   gapDegree: PropTypes.number,
-  gapPosition: PropTypes.oneOf(['top', 'bottom', 'left', 'right']),
+  gapPosition: oneOf(['top', 'bottom', 'left', 'right']),
   showInfo: PropTypes.bool,
-  status: PropTypes.oneOf(['success', 'fail', 'active']),
+  status: oneOf(['success', 'fail', 'active']),
   classPrefix: PropTypes.string
 };
 

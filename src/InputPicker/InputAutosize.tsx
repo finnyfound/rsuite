@@ -1,6 +1,6 @@
 import React, { useState, useRef, useImperativeHandle, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { partitionHTMLProps, isIE, guid } from '../utils';
+import { partitionHTMLProps, isIE, guid } from '@/internals/utils';
 
 const sizerStyle: React.CSSProperties = {
   position: 'absolute',
@@ -63,9 +63,9 @@ const useInputWidth = (
 
     let width: number;
     if (placeholder && !value && placeholderRef.current) {
-      width = Math.max(sizerRef.current.scrollWidth, placeholderRef.current.scrollWidth) + 2;
+      width = Math.max(sizerRef.current.scrollWidth, placeholderRef.current.scrollWidth) + 10;
     } else {
-      width = sizerRef.current.scrollWidth + 2;
+      width = sizerRef.current.scrollWidth + 10;
     }
 
     if (width < minWidth) {
@@ -102,8 +102,8 @@ const InputAutosize = React.forwardRef(
     const placeholderRef = useRef<HTMLDivElement>(null);
 
     useImperativeHandle(ref, () => ({
-      root: rootRef.current!,
-      input: inputRef.current!
+      root: rootRef.current as HTMLDivElement,
+      input: inputRef.current as HTMLInputElement
     }));
 
     const sizerValue = [defaultValue, value, ''].reduce((previousValue, currentValue) => {
@@ -132,7 +132,10 @@ const InputAutosize = React.forwardRef(
         return;
       }
 
-      copyStyles(inputStyles, sizerRef.current!);
+      if (sizerRef.current) {
+        copyStyles(inputStyles, sizerRef.current);
+      }
+
       if (placeholderRef.current) {
         copyStyles(inputStyles, placeholderRef.current);
       }

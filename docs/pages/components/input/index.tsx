@@ -11,18 +11,30 @@ import {
   SelectPicker,
   ButtonToolbar,
   Toggle,
-  FlexboxGrid
+  FlexboxGrid,
+  Stack
 } from 'rsuite';
 import DefaultPage from '@/components/Page';
+import ImportGuide from '@/components/ImportGuide';
 import SearchIcon from '@rsuite/icons/Search';
-import InfoIcon from '@rsuite/icons/legacy/Info';
-import AvatarIcon from '@rsuite/icons/legacy/Avatar';
-import EyeIcon from '@rsuite/icons/legacy/Eye';
-import EyeSlashIcon from '@rsuite/icons/legacy/EyeSlash';
+import InfoRoundIcon from '@rsuite/icons/InfoRound';
+import EyeCloseIcon from '@rsuite/icons/EyeClose';
+import VisibleIcon from '@rsuite/icons/Visible';
+import { FaRegUserCircle } from 'react-icons/fa';
+
+const inDocsComponents = {
+  'import-guide': () => (
+    <ImportGuide
+      components={['Input', 'InputGroup', 'MaskedInput']}
+      hasCssComponents={['Input', 'InputGroup']}
+    />
+  )
+};
 
 export default function Page() {
   return (
     <DefaultPage
+      inDocsComponents={inDocsComponents}
       dependencies={{
         Input,
         InputGroup,
@@ -32,15 +44,16 @@ export default function Page() {
         Row,
         Col,
         SearchIcon,
-        InfoIcon,
-        AvatarIcon,
-        EyeIcon,
-        EyeSlashIcon,
+        InfoRoundIcon,
+        FaRegUserCircle,
+        EyeCloseIcon,
+        VisibleIcon,
         MaskedInput,
         SelectPicker,
         ButtonToolbar,
         Toggle,
-        FlexboxGrid
+        FlexboxGrid,
+        Stack
       }}
     />
   );

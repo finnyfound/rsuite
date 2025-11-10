@@ -1,4 +1,6 @@
 @import '../../styles/common';
+@import '../../Dropdown/styles/index';
+@import '../../internals/Ripple/styles/index';
 
 // NavBar
 // --------------------------------------------------
@@ -62,9 +64,14 @@
   display: flex;
   align-items: center;
 
-  > .rs-icon {
+  &-icon {
     font-size: 16px;
     margin-right: 5px;
+  }
+
+  &-caret {
+    font-size: 16px;
+    margin-left: 6px;
   }
 }
 
@@ -72,8 +79,6 @@
 .rs-navbar-brand,
 .rs-navbar-item,
 .rs-navbar-nav > .rs-dropdown-item {
-  outline: 0;
-
   &,
   &:hover,
   &:focus,
@@ -82,7 +87,9 @@
   }
 
   &:focus-visible {
-    .focus-ring();
+    // Navbar is usually placed by the top edge of the page
+    // thus use an inset focus ring to prevent overflow clipping
+    .focus-ring(inset);
 
     .high-contrast-mode({
       .focus-ring(slim-inset);
@@ -97,9 +104,20 @@
   margin: 0 !important;
 }
 
-// DropDown
+.rs-navbar-item.rs-navbar-item-active {
+  .high-contrast-mode({
+    text-decoration: underline;
+  });
+}
+
+// Dropdown
 .rs-navbar-nav > .rs-dropdown .rs-dropdown-toggle {
   &:extend(.rs-navbar-item);
+
+  &:focus,
+  &:focus-visible {
+    &:extend(.rs-navbar-item:focus-visible);
+  }
 
   padding-right: @navbar-item-padding-x+ @dropdown-caret-width+ @dropdown-caret-padding;
 
@@ -117,10 +135,10 @@
   }
 }
 
-.rs-navbar-item.rs-navbar-item-active {
-  .high-contrast-mode({
-    text-decoration: underline;
-  });
+.rs-navbar .rs-dropdown-item {
+  &:hover {
+    .menuitem-active();
+  }
 }
 
 // Default Navbar
@@ -175,7 +193,7 @@
   .rs-dropdown .rs-dropdown-toggle {
     &:hover,
     &:focus {
-      background-color: transparent;
+      background-color: var(--rs-navbar-subtle-hover-bg);
       color: var(--rs-navbar-subtle-hover-text);
     }
   }

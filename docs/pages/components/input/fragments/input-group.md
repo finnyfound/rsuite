@@ -1,12 +1,16 @@
 <!--start-code-->
 
 ```js
+import { Input, InputGroup } from 'rsuite';
+import SearchIcon from '@rsuite/icons/Search';
+import { FaRegUserCircle } from "react-icons/fa";
+
 const styles = {
   width: 300,
   marginBottom: 10
 };
 
-const instance = (
+const App = () => (
   <div>
     <InputGroup style={styles}>
       <InputGroup.Addon> @</InputGroup.Addon>
@@ -39,14 +43,14 @@ const instance = (
 
     <InputGroup style={styles}>
       <InputGroup.Addon>
-        <AvatarIcon />
+        <FaRegUserCircle />
       </InputGroup.Addon>
       <Input />
     </InputGroup>
   </div>
 );
 
-ReactDOM.render(instance);
+ReactDOM.render(<App />, document.getElementById('root'));
 ```
 
 <!--end-code-->

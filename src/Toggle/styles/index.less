@@ -10,12 +10,20 @@
 // todo: Consider renaming as .rs-toggle
 .rs-toggle {
   position: relative;
+  display: inline-block;
+  vertical-align: middle;
 
   // Default size is middle.
   .toggle(md);
+
+  &-label {
+    cursor: pointer;
+    margin-left: 10px;
+  }
 }
 
 .rs-toggle-input {
+  cursor: pointer;
   position: absolute;
   top: 0;
   left: 0;
@@ -70,7 +78,7 @@
     background-color: var(--rs-toggle-disabled-bg);
     color: var(--rs-toggle-disabled-thumb);
     box-shadow: inset 0 0 0 1px var(--rs-toggle-disabled-thumb);
-    cursor: not-allowed;
+    pointer-events: none;
   }
 
   // checked state
@@ -98,7 +106,8 @@
 
 // Label text inside the switch
 .rs-toggle-inner {
-  display: block;
+  display: flex;
+  align-items: center;
   transition: margin @toggle-transition;
 
   .high-contrast-mode({
@@ -134,3 +143,14 @@
 .rs-toggle-lg {
   .toggle(lg);
 }
+
+// Colorful tags
+each(@spectrum, .(@color) {
+  .rs-toggle-checked.rs-toggle-@{color} .rs-toggle-presentation{
+    background-color: var(~'--rs-@{color}-500');
+
+    &:hover {
+      background-color: var(~'--rs-@{color}-600');
+    }
+  }
+});

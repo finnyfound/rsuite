@@ -1,38 +1,65 @@
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { useClassNames } from '../utils';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
-
+import { useClassNames } from '@/internals/hooks';
+import { useCustom } from '../CustomProvider';
+import { oneOf } from '@/internals/propTypes';
+import type { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
 export interface PlaceholderParagraphProps extends WithAsProps {
-  /* number of rows */
+  /**
+   * The number of rows.
+   * @default 2
+   */
   rows?: number;
 
-  /* height of rows */
+  /**
+   * The height of the row.
+   * @default 10
+   */
   rowHeight?: number;
 
-  /* margin of rows */
+  /**
+   * @deprecated Use `rowSpacing` instead.
+   */
   rowMargin?: number;
 
-  /* show graph */
+  /**
+   * The spacing between rows.
+   * @default 20
+   * @version 5.59.1
+   */
+  rowSpacing?: number;
+
+  /**
+   * The shape of the graph.
+   * @default false
+   */
   graph?: boolean | 'circle' | 'square' | 'image';
 
-  /** Placeholder status */
+  /**
+   * Placeholder status, display the loading state.
+   */
   active?: boolean;
 }
 
+/**
+ * The `Placeholder.Paragraph` component is used to display the loading state of the block.
+ * @see https://rsuitejs.com/components/placeholder
+ */
 const PlaceholderParagraph: RsRefForwardingComponent<'div', PlaceholderParagraphProps> =
   React.forwardRef((props: PlaceholderParagraphProps, ref) => {
+    const { propsWithDefaults } = useCustom('PlaceholderParagraph', props);
     const {
       as: Component = 'div',
       className,
       rows = 2,
       rowHeight = 10,
       rowMargin = 20,
+      rowSpacing = rowMargin,
       graph,
       active,
       classPrefix = 'placeholder',
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
     const { merge, prefix, withClassPrefix } = useClassNames(classPrefix);
     const graphShape = graph === true ? 'square' : graph;
@@ -42,14 +69,13 @@ const PlaceholderParagraph: RsRefForwardingComponent<'div', PlaceholderParagraph
 
       for (let i = 0; i < rows; i++) {
         const styles = {
-          width: `${Math.random() * 75 + 25}%`,
           height: rowHeight,
-          marginTop: i > 0 ? rowMargin : Number(rowMargin) / 2
+          marginTop: i > 0 ? rowSpacing : Number(rowSpacing) / 2
         };
-        rowArr.push(<p key={i} style={styles} />);
+        rowArr.push(<div key={i} style={styles} className={prefix`row`} />);
       }
       return rowArr;
-    }, [rowHeight, rowMargin, rows]);
+    }, [prefix, rowHeight, rowSpacing, rows]);
 
     const classes = merge(className, withClassPrefix('paragraph', { active }));
     const graphClasses = prefix('paragraph-graph', `paragraph-graph-${graphShape}`);
@@ -61,7 +87,7 @@ const PlaceholderParagraph: RsRefForwardingComponent<'div', PlaceholderParagraph
             <span className={prefix('paragraph-graph-inner')} />
           </div>
         )}
-        <div className={prefix('paragraph-rows')}>{rowElements}</div>
+        <div className={prefix('paragraph-group')}>{rowElements}</div>
       </Component>
     );
   });
@@ -72,8 +98,8 @@ PlaceholderParagraph.propTypes = {
   classPrefix: PropTypes.string,
   rows: PropTypes.number,
   rowHeight: PropTypes.number,
-  rowMargin: PropTypes.number,
-  graph: PropTypes.oneOfType([PropTypes.bool, PropTypes.oneOf(['circle', 'square', 'image'])]),
+  rowSpacing: PropTypes.number,
+  graph: PropTypes.oneOfType([PropTypes.bool, oneOf(['circle', 'square', 'image'])]),
   active: PropTypes.bool
 };
 

@@ -2,6 +2,7 @@ const OFF = 0;
 const WARNING = 1;
 const ERROR = 2;
 
+/** @type {import('eslint').Linter.Config} */
 module.exports = {
   env: {
     browser: true,
@@ -30,7 +31,8 @@ module.exports = {
     '@typescript-eslint/no-namespace': OFF,
     '@typescript-eslint/explicit-module-boundary-types': OFF,
     'react/display-name': OFF,
-    'react/prop-types': OFF
+    'react/prop-types': OFF,
+    'react/react-in-jsx-scope': OFF
   },
   settings: {
     react: {
@@ -39,10 +41,36 @@ module.exports = {
   },
   overrides: [
     {
-      files: ['*Spec.js'],
+      files: ['*.js'],
       rules: {
-        'react/prop-types': 'off'
+        '@typescript-eslint/no-var-requires': 'off'
       }
+    },
+    {
+      files: ['*Spec.js', '*Spec.ts', '*Spec.tsx'],
+      extends: ['plugin:testing-library/react'],
+      rules: {
+        'react/prop-types': 'off',
+        'testing-library/no-node-access': [
+          'error',
+          {
+            allowContainerFirstChild: true
+          }
+        ],
+        'testing-library/no-wait-for-multiple-assertions': 'off'
+      },
+      settings: {
+        'testing-library/custom-renders': 'off'
+      },
+      overrides: [
+        {
+          files: ['*StylesSpec.tsx'],
+          rules: {
+            // Node access is unavoidable in style tests as they do test against class selectors
+            'testing-library/no-node-access': 'off'
+          }
+        }
+      ]
     }
   ]
 };

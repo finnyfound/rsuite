@@ -1,18 +1,20 @@
-import React, { useCallback, useContext } from 'react';
-import omit from 'lodash/omit';
-import Menu from '../Menu/Menu';
-import MenuItem from '../Menu/MenuItem';
-import { mergeRefs, useClassNames } from '../utils';
+import React, { useCallback, useContext, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { StandardProps } from '../@types/common';
-import { IconProps } from '@rsuite/icons/lib/Icon';
-import { SidenavContext } from '../Sidenav/Sidenav';
-import AngleLeft from '@rsuite/icons/legacy/AngleLeft';
-import AngleRight from '@rsuite/icons/legacy/AngleRight';
-import useCustom from '../utils/useCustom';
+import omit from 'lodash/omit';
+import Menu from '@/internals/Menu/Menu';
+import MenuItem from '@/internals/Menu/MenuItem';
+import Menubar from '@/internals/Menu/Menubar';
+import PagePreviousIcon from '@rsuite/icons/PagePrevious';
+import PageNextIcon from '@rsuite/icons/PageNext';
 import DropdownContext from './DropdownContext';
-import Menubar from '../Menu/Menubar';
-import SidenavDropdownMenu from '../Sidenav/SidenavDropdownMenu';
+import Nav from '../Nav';
+import NavContext from '../Nav/NavContext';
+import { oneOf } from '@/internals/propTypes';
+import { useClassNames } from '@/internals/hooks';
+import { useCustom } from '../CustomProvider';
+import { mergeRefs, warnOnce } from '@/internals/utils';
+import type { StandardProps } from '@/internals/types';
+import type { IconProps } from '@rsuite/icons/Icon';
 
 export interface DropdownMenuProps<T = string> extends StandardProps {
   /** Define the title as a submenu */
@@ -41,11 +43,11 @@ export interface DropdownMenuProps<T = string> extends StandardProps {
 }
 
 /**
- * The <Dropdown.Menu> API
+ * The `<Dropdown.Menu>` API
  *
  * @description
- * Note the difference between this component and <Menu> component:
- * <Menu> is used for ARIA menu control logic and is used internally only.
+ * Note the difference between this component and `<Menu>` component:
+ * `<Menu>` is used for ARIA menu control logic and is used internally only.
  * This component is only used for supporting submenu syntax and is
  * assigned to Dropdown.Menu
  *
@@ -69,13 +71,15 @@ const DropdownMenu = React.forwardRef<
     activeKey,
     onSelect,
     classPrefix = 'dropdown-menu',
+    className,
     children,
     ...rest
   } = props;
 
+  const nav = useContext(NavContext);
+
   const dropdown = useContext(DropdownContext);
-  const sidenav = useContext(SidenavContext);
-  const { rtl } = useCustom('DropdownMenu');
+  const { rtl } = useCustom();
 
   const handleToggleSubmenu = useCallback(
     (_: boolean, event: React.SyntheticEvent) => {
@@ -94,23 +98,24 @@ const DropdownMenu = React.forwardRef<
     prefix: prefixItemClassName
   } = useClassNames('dropdown-item');
 
+  const contextValue = useMemo(() => ({ activeKey, onSelect }), [activeKey, onSelect]);
+
+  // If rendered within a <Nav>
+  // Suggest <Nav.Menu>
+  if (nav) {
+    warnOnce('Usage of <Dropdown.Menu> within <Nav> is deprecated. Replace with <Nav.Menu>');
+
+    return <Nav.Menu ref={ref} {...(props as any)} />;
+  }
+
   // <Dropdown.Menu> is used outside of <Dropdown>
   // renders a vertical `menubar`
   if (!dropdown) {
-    const classes = merge(props.className, withClassPrefix());
+    const classes = merge(className, withClassPrefix());
 
     return (
-      <DropdownContext.Provider value={{ activeKey, onSelect }}>
-        <Menubar
-          vertical
-          onActivateItem={event => {
-            const { eventKey, eventKeyType } = (event.target as HTMLElement).dataset;
-
-            // Only cast number type for now
-            const eventKeyToEmit = eventKeyType === 'number' ? Number(eventKey) : eventKey;
-            onSelect?.(eventKeyToEmit as any, event);
-          }}
-        >
+      <DropdownContext.Provider value={contextValue}>
+        <Menubar vertical>
           {(menubar, menubarRef: React.Ref<HTMLElement>) => (
             <ul ref={mergeRefs(menubarRef, ref)} className={classes} {...menubar} {...rest}>
               {children}
@@ -121,15 +126,11 @@ const DropdownMenu = React.forwardRef<
     );
   }
 
-  if (sidenav?.expanded) {
-    return <SidenavDropdownMenu {...(omit(props, 'classPrefix') as any)} />;
-  }
-
   // Parent menu exists. This is a submenu.
   // Should render a `menuitem` that controls this submenu.
-  const { icon, className, disabled, ...menuProps } = omit(rest, ['trigger']);
+  const { icon, disabled, ...menuProps } = omit(rest, ['trigger']);
 
-  const Icon = rtl ? AngleLeft : AngleRight;
+  const Icon = rtl ? PagePreviousIcon : PageNextIcon;
 
   return (
     <Menu
@@ -139,9 +140,7 @@ const DropdownMenu = React.forwardRef<
           {({ selected, active, ...menuitem }, menuitemRef) => {
             const classes = mergeItemClassNames(
               className,
-              prefixItemClassName(`pull-${rtl ? 'left' : 'right'}`),
               prefixItemClassName`toggle`,
-              // prefixItemClassName`submenu`,
               withItemClassPrefix({
                 'with-icon': icon,
                 open,
@@ -192,7 +191,6 @@ const DropdownMenu = React.forwardRef<
             disabled,
             open,
             submenu: true
-            // focus: hasFocus
           })
         );
         return (
@@ -218,7 +216,7 @@ DropdownMenu.propTypes = {
   pullLeft: PropTypes.bool,
   title: PropTypes.node,
   open: PropTypes.bool,
-  trigger: PropTypes.oneOf(['click', 'hover']),
+  trigger: oneOf(['click', 'hover']),
   eventKey: PropTypes.any,
   expanded: PropTypes.bool,
   collapsible: PropTypes.bool,

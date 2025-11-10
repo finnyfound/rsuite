@@ -7,7 +7,7 @@ export function isArray(value) {
 
 export default function conformToMask(
   rawValue = '',
-  mask: MaskType | MaskFunctionType = [],
+  mask: MaskType | MaskFunctionType | any = [],
   config: ConfigType = {}
 ) {
   if (!isArray(mask)) {
@@ -126,6 +126,7 @@ export default function conformToMask(
         // or we find at least one character that we can map.
         while (rawValueArr.length > 0) {
           // Let's retrieve the first user character in the queue of characters we have left
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           const { char: rawValueChar, isNew } = rawValueArr.shift()!;
 
           // If the character we got from the user input is a placeholder character (which happens

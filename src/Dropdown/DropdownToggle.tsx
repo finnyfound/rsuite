@@ -1,12 +1,10 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
 import Button from '../Button';
-import { useClassNames } from '../utils';
-import { IconProps } from '@rsuite/icons/lib/Icon';
-import { WithAsProps, RsRefForwardingComponent, TypeAttributes } from '../@types/common';
-import useToggleCaret from '../utils/useToggleCaret';
-import { SidenavContext } from '../Sidenav/Sidenav';
-import NavContext from '../Nav/NavContext';
+import { useClassNames, useToggleCaret } from '@/internals/hooks';
+import { IconProps } from '@rsuite/icons/Icon';
+import { WithAsProps, RsRefForwardingComponent, TypeAttributes } from '@/internals/types';
+import { oneOf } from '@/internals/propTypes';
 
 export interface DropdownToggleProps extends WithAsProps {
   icon?: React.ReactElement<IconProps>;
@@ -29,23 +27,14 @@ const DropdownToggle: RsRefForwardingComponent<typeof Button, DropdownToggleProp
       ...rest
     } = props;
 
-    const sidenav = useContext(SidenavContext);
-    const { withinNav } = useContext(NavContext);
     const { prefix, withClassPrefix, merge } = useClassNames(classPrefix);
     const classes = merge(className, withClassPrefix({ 'no-caret': noCaret }));
 
-    const inSidenav = !!sidenav;
-
     // Caret icon is down by default, when Dropdown is used in Sidenav.
-    const Caret = useToggleCaret(inSidenav ? 'bottomStart' : placement);
+    const Caret = useToggleCaret(placement);
 
     const toggle = (
-      <Component
-        appearance={withinNav ? 'subtle' : undefined}
-        {...rest}
-        ref={ref}
-        className={classes}
-      >
+      <Component {...rest} ref={ref} className={classes}>
         {icon &&
           React.cloneElement(icon, {
             className: prefix('icon')
@@ -67,7 +56,7 @@ DropdownToggle.propTypes = {
   noCaret: PropTypes.bool,
   as: PropTypes.elementType,
   renderToggle: PropTypes.func,
-  placement: PropTypes.oneOf([
+  placement: oneOf([
     'bottomStart',
     'bottomEnd',
     'topStart',

@@ -1,8 +1,11 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import kebabCase from 'lodash/kebabCase';
-import { placementPolyfill, useClassNames } from '../utils';
-import { TypeAttributes, WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import { useClassNames } from '@/internals/hooks';
+import { placementPolyfill } from '@/internals/utils';
+import { oneOf } from '@/internals/propTypes';
+import { TypeAttributes, WithAsProps, RsRefForwardingComponent } from '@/internals/types';
+import { useCustom } from '../CustomProvider';
 
 export interface FormErrorMessageProps extends WithAsProps {
   /** Show error messages */
@@ -12,8 +15,13 @@ export interface FormErrorMessageProps extends WithAsProps {
   placement?: TypeAttributes.Placement8;
 }
 
+/**
+ * The `<Form.ErrorMessage>` component is used to display error messages in the form.
+ * @see https://rsuitejs.com/components/form/
+ */
 const FormErrorMessage: RsRefForwardingComponent<'div', FormErrorMessageProps> = React.forwardRef(
   (props: FormErrorMessageProps, ref: React.Ref<HTMLDivElement>) => {
+    const { propsWithDefaults } = useCustom('FormErrorMessage', props);
     const {
       as: Component = 'div',
       classPrefix = 'form-error-message',
@@ -22,7 +30,7 @@ const FormErrorMessage: RsRefForwardingComponent<'div', FormErrorMessageProps> =
       children,
       placement,
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
     const { withClassPrefix, prefix, merge } = useClassNames(classPrefix);
     const classes = withClassPrefix('show');
@@ -33,18 +41,14 @@ const FormErrorMessage: RsRefForwardingComponent<'div', FormErrorMessageProps> =
       })
     );
 
-    if (!show) {
-      return null;
-    }
-
-    return (
+    return show ? (
       <Component {...rest} ref={ref} className={wrapperClasses}>
         <span className={classes}>
           <span className={prefix`arrow`} />
           <span className={prefix`inner`}>{children}</span>
         </span>
       </Component>
-    );
+    ) : null;
   }
 );
 
@@ -54,7 +58,7 @@ FormErrorMessage.propTypes = {
   classPrefix: PropTypes.string,
   children: PropTypes.node,
   className: PropTypes.string,
-  placement: PropTypes.oneOf([
+  placement: oneOf([
     'bottomStart',
     'bottomEnd',
     'topStart',

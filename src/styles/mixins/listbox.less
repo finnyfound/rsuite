@@ -35,22 +35,12 @@
   cursor: pointer;
   text-decoration: none;
   width: 100%;
-
-  /* stylelint-disable-next-line */ // This class name provide by Virtualized.
-  .ReactVirtualized__Grid & {
-    .ellipsis-basic();
-  }
 }
 
 // "-active" for aria-activedescendant
-.listbox-option-active(@multiselectable: false) {
+.listbox-option-active() {
   background-color: var(--rs-listbox-option-hover-bg);
-
-  // No need to change text color in multiselectable listboxes
-  // in favor of checkbox state changes
-  & when (@multiselectable = false) {
-    color: var(--rs-listbox-option-hover-text);
-  }
+  color: var(--rs-listbox-option-hover-text);
 
   .high-contrast-mode({
     .focus-ring(slim-inset);

@@ -1,21 +1,37 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { useClassNames } from '../utils';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import { useClassNames } from '@/internals/hooks';
+import { useCustom } from '../CustomProvider';
+import type { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
 
 export interface PlaceholderGraphProps extends WithAsProps {
-  /* height of rows */
+  /**
+   * The height of the graph.
+   *
+   * @default 200
+   */
   height?: number;
 
-  /* width of rows */
+  /**
+   * The width of the graph.
+   *
+   * @default 100%
+   */
   width?: number;
 
-  /** Placeholder status */
+  /**
+   * Placeholder status, display the loading state.
+   */
   active?: boolean;
 }
 
+/**
+ * The `Placeholder.Graph` component is used to display the loading state of the block.
+ * @see https://rsuitejs.com/components/placeholder
+ */
 const PlaceholderGraph: RsRefForwardingComponent<'div', PlaceholderGraphProps> = React.forwardRef(
   (props: PlaceholderGraphProps, ref) => {
+    const { propsWithDefaults } = useCustom('PlaceholderGraph', props);
     const {
       as: Component = 'div',
       className,
@@ -25,7 +41,8 @@ const PlaceholderGraph: RsRefForwardingComponent<'div', PlaceholderGraphProps> =
       active,
       classPrefix = 'placeholder',
       ...rest
-    } = props;
+    } = propsWithDefaults;
+
     const { merge, withClassPrefix } = useClassNames(classPrefix);
 
     const classes = merge(className, withClassPrefix('graph', { active }));

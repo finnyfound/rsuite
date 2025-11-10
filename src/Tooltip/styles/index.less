@@ -16,7 +16,6 @@
   max-width: @tooltip-max-width;
   padding: 2px 10px;
   color: var(--rs-tooltip-text);
-  text-align: center; // TODO: remove align center?
   background-color: var(--rs-tooltip-bg);
   border-radius: @tooltip-border-radius;
   overflow-wrap: break-word;
@@ -31,8 +30,8 @@
   }
 
   // Arrows
-  &::before,
-  &::after {
+  &-arrow::before,
+  &-arrow::after {
     content: ' ';
     display: block;
     position: absolute;
@@ -42,14 +41,14 @@
     border-style: solid;
   }
 
-  &::before {
+  &-arrow::before {
     display: none;
   }
 
   .high-contrast-mode({
     border: 1px solid var(--rs-border-primary);
 
-    &::before {
+    &-arrow::before {
       display: block;
     }
   });

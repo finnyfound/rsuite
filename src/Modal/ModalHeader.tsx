@@ -1,9 +1,10 @@
 import React, { useContext } from 'react';
 import PropTypes from 'prop-types';
-import { createChainedFunction, useClassNames } from '../utils';
+import { useClassNames } from '@/internals/hooks';
+import { createChainedFunction } from '@/internals/utils';
 import { ModalContext } from './ModalContext';
-import CloseButton from '../CloseButton';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import CloseButton from '@/internals/CloseButton';
+import { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
 import Close from '@rsuite/icons/Close';
 import IconButton from '../IconButton';
 
@@ -33,19 +34,20 @@ const ModalHeader: RsRefForwardingComponent<'div', ModalHeaderProps> = React.for
     const classes = merge(className, withClassPrefix());
 
     const context = useContext(ModalContext);
+    const { isDrawer, onModalClose } = context || {};
 
-    const buttonElement = !context?.isDrawer ? (
-      <CloseButton
-        className={prefix('close')}
-        onClick={createChainedFunction(onClose, context?.onModalClose)}
-      />
-    ) : (
+    const buttonElement = isDrawer ? (
       <IconButton
         icon={<Close />}
         appearance="subtle"
         size="sm"
         className={prefix('close')}
-        onClick={createChainedFunction(onClose, context?.onModalClose)}
+        onClick={createChainedFunction(onClose, onModalClose)}
+      />
+    ) : (
+      <CloseButton
+        className={prefix('close')}
+        onClick={createChainedFunction(onClose, onModalClose)}
       />
     );
 
@@ -64,8 +66,7 @@ ModalHeader.propTypes = {
   classPrefix: PropTypes.string,
   className: PropTypes.string,
   closeButton: PropTypes.bool,
-  children: PropTypes.node,
-  onHide: PropTypes.func
+  children: PropTypes.node
 };
 
 export default ModalHeader;

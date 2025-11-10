@@ -1,4 +1,4 @@
-# Official Themes
+# Themes
 
 React Suite officially provides the following 3 themes by default, you only need a simple configuration to use.
 
@@ -7,8 +7,11 @@ React Suite officially provides the following 3 themes by default, you only need
 - `high-contrast`: High contrast theme. It uses a limited color palette with contrasting colors to make an interface easier to use.
   It's useful when users have photosensitivity or contrast issues, as well as in low-light environments.
 
+<!-- webpackIgnore: true -->
 <img src="/images/themes/light-themes@2x.png" width="259" alt="light"/>
+<!-- webpackIgnore: true -->
 <img src="/images/themes/dark-themes@2x.png" width="259" alt="dark" />
+<!-- webpackIgnore: true -->
 <img src="/images/themes/high-contrast-themes@2x.png" width="259" alt="high contrast"/>
 
 ---
@@ -53,4 +56,4 @@ If you want to change the theme of only a part of the component, just add the `.
 
 ## Customization
 
-If the themes provided above cannot meet the visual requirements of your application, you can meet the [customization](/guide/customization) requirements of your business through some of our predefined parameter configurations.
+If the themes provided above cannot meet the visual requirements of your application, you can meet the [customization](/guide/customization-less) requirements of your business through some of our predefined parameter configurations.

@@ -1,7 +1,9 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { useClassNames } from '../utils';
-import { WithAsProps, RsRefForwardingComponent, TypeAttributes } from '../@types/common';
+import { useClassNames, useUniqueId } from '@/internals/hooks';
+import { oneOf } from '@/internals/propTypes';
+import { WithAsProps, RsRefForwardingComponent, TypeAttributes } from '@/internals/types';
+import { useCustom } from '../CustomProvider';
 
 export interface LoaderProps extends WithAsProps {
   /** Centered in the container */
@@ -20,14 +22,19 @@ export interface LoaderProps extends WithAsProps {
   content?: React.ReactNode;
 
   /** The speed at which the loader rotates */
-  speed?: 'normal' | 'fast' | 'slow';
+  speed?: 'normal' | 'fast' | 'slow' | 'paused';
 
   /** A loader can have different sizes */
   size?: TypeAttributes.Size;
 }
 
+/**
+ * The `Loader` component is used to indicate the loading state of a page or a section.
+ * @see https://rsuitejs.com/components/loader
+ */
 const Loader: RsRefForwardingComponent<'div', LoaderProps> = React.forwardRef(
   (props: LoaderProps, ref) => {
+    const { propsWithDefaults } = useCustom('Loader', props);
     const {
       as: Component = 'div',
       classPrefix = 'loader',
@@ -40,16 +47,15 @@ const Loader: RsRefForwardingComponent<'div', LoaderProps> = React.forwardRef(
       content,
       size,
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
-    const hasContent = !!content;
     const { merge, withClassPrefix, prefix } = useClassNames(classPrefix);
+    const labelId = useUniqueId('loader-label-');
 
     const classes = merge(
       className,
       prefix('wrapper', `speed-${speed}`, size, {
         'backdrop-wrapper': backdrop,
-        'has-content': hasContent,
         vertical,
         inverse,
         center
@@ -57,11 +63,21 @@ const Loader: RsRefForwardingComponent<'div', LoaderProps> = React.forwardRef(
     );
 
     return (
-      <Component role="progressbar" {...rest} ref={ref} className={classes}>
+      <Component
+        role="status"
+        aria-labelledby={content ? labelId : undefined}
+        {...rest}
+        ref={ref}
+        className={classes}
+      >
         {backdrop && <div className={prefix('backdrop')} />}
         <div className={withClassPrefix()}>
           <span className={prefix('spin')} />
-          {hasContent && <span className={prefix('content')}>{content}</span>}
+          {content && (
+            <span id={labelId} className={prefix('content')}>
+              {content}
+            </span>
+          )}
         </div>
       </Component>
     );
@@ -78,8 +94,8 @@ Loader.propTypes = {
   inverse: PropTypes.bool,
   vertical: PropTypes.bool,
   content: PropTypes.node,
-  size: PropTypes.oneOf(['lg', 'md', 'sm', 'xs']),
-  speed: PropTypes.oneOf(['normal', 'fast', 'slow'])
+  size: oneOf(['lg', 'md', 'sm', 'xs']),
+  speed: oneOf(['normal', 'fast', 'slow', 'paused'])
 };
 
 export default Loader;

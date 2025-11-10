@@ -1,7 +1,8 @@
-import React, { useCallback } from 'react';
+import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { useClassNames, useControlled } from '../utils';
-import { WithAsProps } from '../@types/common';
+import { useClassNames, useControlled, useEventCallback } from '@/internals/hooks';
+import { useCustom } from '../CustomProvider';
+import type { WithAsProps } from '@/internals/types';
 
 type KeyType = string | number;
 export interface PanelGroupProps<T = KeyType> extends WithAsProps {
@@ -32,7 +33,12 @@ interface PanelGroupContext {
 
 export const PanelGroupContext = React.createContext<PanelGroupContext>({});
 
+/**
+ * The `PanelGroup` component is used to display content that can be collapsed.
+ * @see https://rsuitejs.com/components/panel
+ */
 const PanelGroup = React.forwardRef((props: PanelGroupProps, ref) => {
+  const { propsWithDefaults } = useCustom('PanelGroup', props);
   const {
     as: Component = 'div',
     accordion,
@@ -44,30 +50,27 @@ const PanelGroup = React.forwardRef((props: PanelGroupProps, ref) => {
     activeKey: activeProp,
     onSelect,
     ...rest
-  } = props;
+  } = propsWithDefaults;
+
   const { withClassPrefix, merge } = useClassNames(classPrefix);
   const [activeKey, setActiveKey] = useControlled(activeProp, defaultActiveKey);
-  const classes = merge(
-    className,
-    withClassPrefix({
-      accordion,
-      bordered
-    })
-  );
+  const classes = merge(className, withClassPrefix({ accordion, bordered }));
 
-  const handleSelect = useCallback(
+  const handleSelect = useEventCallback(
     (activeKey: KeyType | undefined, event: React.MouseEvent) => {
       setActiveKey(activeKey);
       onSelect?.(activeKey, event);
-    },
-    [onSelect, setActiveKey]
+    }
+  );
+
+  const contextValue = useMemo(
+    () => ({ accordion, activeKey, onGroupSelect: handleSelect }),
+    [accordion, activeKey, handleSelect]
   );
 
   return (
-    <Component {...rest} ref={ref} role={accordion ? 'tablist' : undefined} className={classes}>
-      <PanelGroupContext.Provider value={{ accordion, activeKey, onGroupSelect: handleSelect }}>
-        {children}
-      </PanelGroupContext.Provider>
+    <Component {...rest} ref={ref} className={classes}>
+      <PanelGroupContext.Provider value={contextValue}>{children}</PanelGroupContext.Provider>
     </Component>
   );
 });

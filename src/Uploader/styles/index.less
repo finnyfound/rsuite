@@ -12,19 +12,15 @@
       position: absolute !important;
       clip: rect(1px 1px 1px 1px);
     }
-
-    &-disabled {
-      //cursor: not-allowed;
-
-      .rs-uploader-trigger-btn {
-        cursor: not-allowed !important;
-      }
-    }
   }
 
   &-file-item-disabled {
     opacity: 0.3;
     cursor: not-allowed;
+
+    &:hover {
+      background-color: transparent !important;
+    }
 
     .rs-uploader-picture & .rs-uploader-file-item-status {
       cursor: not-allowed;
@@ -117,8 +113,7 @@
 
     &-btn-remove {
       position: absolute;
-      font-size: 12px;
-      // (36px -  font-size)/2
+      font-size: 14px;
       top: 12px;
       right: @padding-x;
       color: var(--rs-text-secondary);
@@ -310,13 +305,6 @@
   .rs-uploader-file-item-icon-reupload {
     margin-left: 0;
     display: block;
-  }
-}
-
-.rs-uploader-text,
-.rs-uploader-picture-text {
-  .rs-uploader-trigger-btn {
-    .rs-btn();
   }
 }
 

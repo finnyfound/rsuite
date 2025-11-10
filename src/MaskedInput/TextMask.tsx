@@ -3,7 +3,7 @@ import omit from 'lodash/omit';
 import PropTypes from 'prop-types';
 import createTextMaskInputElement from './createTextMaskInputElement';
 import { MaskType, MaskFunctionType, ConfigType } from './types';
-import { mergeRefs } from '../utils';
+import { mergeRefs } from '@/internals/utils';
 
 /**
  * https://github.com/text-mask/text-mask/blob/master/componentDocumentation.md#guide
@@ -51,6 +51,10 @@ export type TextMaskProps = TextMaskBaseProps &
 
 const defaultRender = (ref, props) => <input ref={ref} {...props} />;
 
+/**
+ * The `TextMask` component is used to format the user input data.
+ * @see https://rsuitejs.com/components/input/#masked-input
+ */
 const TextMask = React.forwardRef((props: TextMaskProps, ref: React.Ref<HTMLInputElement>) => {
   const {
     mask,

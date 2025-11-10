@@ -1,12 +1,18 @@
 import React, { useContext } from 'react';
 import PropTypes from 'prop-types';
-import isUndefined from 'lodash/isUndefined';
+import type { CheckType } from 'schema-typed';
 import Input from '../Input';
 import FormErrorMessage from '../FormErrorMessage';
-import { useClassNames } from '../utils';
-import { TypeAttributes, FormControlBaseProps, WithAsProps } from '../@types/common';
 import FormContext, { FormValueContext } from '../Form/FormContext';
-import { FormGroupContext } from '../FormGroup/FormGroup';
+import useRegisterModel from './hooks/useRegisterModel';
+import useField from './hooks/useField';
+import Toggle from '../Toggle';
+import { useClassNames } from '@/internals/hooks';
+import { TypeAttributes, FormControlBaseProps, WithAsProps } from '@/internals/types';
+import { useFormGroup } from '../FormGroup';
+import { useWillUnmount, useEventCallback } from '@/internals/hooks';
+import { oneOf } from '@/internals/propTypes';
+import { useCustom } from '../CustomProvider';
 
 /**
  * Props that FormControl passes to its accepter
@@ -19,7 +25,17 @@ export interface FormControlProps<P = any, ValueType = any>
   /** Proxied components */
   accepter?: React.ElementType<P & FormControlBaseProps<ValueType>>;
 
-  /** The name of form-control */
+  /**
+   * The name of form-control, support nested path. such as `address.city`.
+   * The path will be used to get and set form values.
+   *
+   * @example
+   * ```js
+   * <Form formValue={{ address: { city: 'Shanghai' } }}>
+   *   <FormControl name="address.city" />
+   * </Form>
+   * ```
+   **/
   name: string;
 
   /** Value */
@@ -48,6 +64,12 @@ export interface FormControlProps<P = any, ValueType = any>
 
   /** Asynchronous check value */
   checkAsync?: boolean;
+
+  /** Remove field value and error message when component is unmounted  */
+  shouldResetWithUnmount?: boolean;
+
+  /** Validation rule */
+  rule?: CheckType<unknown, any>;
 }
 
 interface FormControlComponent extends React.FC<FormControlProps> {
@@ -56,26 +78,31 @@ interface FormControlComponent extends React.FC<FormControlProps> {
   ): React.ReactElement | null;
 }
 
+/**
+ * The `<Form.Control>` component is used to wrap the components that need to be validated.
+ * @see https://rsuitejs.com/components/form/
+ */
 const FormControl: FormControlComponent = React.forwardRef((props: FormControlProps, ref) => {
+  const { propsWithDefaults } = useCustom('FormControl', props);
   const {
     readOnly: readOnlyContext,
     plaintext: plaintextContext,
     disabled: disabledContext,
     errorFromContext,
-    formDefaultValue = {},
     formError,
+    nestedField,
+    removeFieldValue,
+    removeFieldError,
     onFieldChange,
-    onFieldError,
-    onFieldSuccess,
-    model,
-    checkTrigger: contextCheckTrigger
+    checkTrigger: contextCheckTrigger,
+    checkFieldForNextValue,
+    checkFieldAsyncForNextValue
   } = useContext(FormContext);
 
   const {
     as: Component = 'div',
     accepter: AccepterComponent = Input,
     classPrefix = 'form-control',
-    className,
     checkAsync,
     checkTrigger,
     errorPlacement = 'bottomStart',
@@ -88,10 +115,13 @@ const FormControl: FormControlComponent = React.forwardRef((props: FormControlPr
     onChange,
     onBlur,
     defaultValue,
+    shouldResetWithUnmount = false,
+    rule,
+    id,
     ...rest
-  } = props;
+  } = propsWithDefaults;
 
-  const { controlId } = useContext(FormGroupContext);
+  const { controlId, helpTextId, labelId, errorMessageId } = useFormGroup(id);
 
   if (!onFieldChange) {
     throw new Error(`
@@ -100,76 +130,74 @@ const FormControl: FormControlComponent = React.forwardRef((props: FormControlPr
     `);
   }
 
+  useRegisterModel(name, rule);
+
+  useWillUnmount(() => {
+    if (shouldResetWithUnmount) {
+      removeFieldValue?.(name);
+      removeFieldError?.(name);
+    }
+  });
+
   const trigger = checkTrigger || contextCheckTrigger;
   const formValue = useContext(FormValueContext);
-  const val = isUndefined(value) ? formValue?.[name] : value;
 
-  const { withClassPrefix, prefix, merge } = useClassNames(classPrefix);
-  const classes = merge(className, withClassPrefix('wrapper'));
+  const { fieldValue, fieldError, setFieldValue } = useField({
+    name,
+    errorMessage,
+    formValue,
+    formError,
+    value,
+    nestedField,
+    errorFromContext
+  });
 
-  const handleFieldChange = (value: any, event: React.SyntheticEvent) => {
-    handleFieldCheck(value, trigger === 'change');
+  const { withClassPrefix, prefix } = useClassNames(classPrefix);
+  const classes = withClassPrefix('wrapper');
+
+  const handleFieldChange = useEventCallback((value: any, event: React.SyntheticEvent) => {
+    if (trigger === 'change') {
+      handleFieldCheck(value);
+    }
+
     onFieldChange?.(name, value, event);
     onChange?.(value, event);
-  };
+  });
 
-  const handleFieldBlur = (event: React.FocusEvent<HTMLFormElement>) => {
-    handleFieldCheck(val, trigger === 'blur');
+  const handleFieldBlur = useEventCallback((event: React.FocusEvent<HTMLFormElement>) => {
+    if (trigger === 'blur') {
+      handleFieldCheck(fieldValue);
+    }
     onBlur?.(event);
-  };
+  });
 
-  const handleFieldCheck = (value: any, isCheckTrigger: boolean) => {
-    const callbackEvents = checkResult => {
-      // The relevant event is triggered only when the inspection is allowed.
-      if (isCheckTrigger) {
-        if (checkResult.hasError) {
-          onFieldError?.(name, checkResult?.errorMessage || checkResult);
-        } else {
-          onFieldSuccess?.(name);
-        }
-      }
-      return checkResult;
-    };
-
-    const nextFormValue = { ...formValue, [name]: value };
-
+  const handleFieldCheck = useEventCallback((value: any) => {
+    const nextFormValue = setFieldValue(name, value);
     if (checkAsync) {
-      return model?.checkForFieldAsync(name, nextFormValue).then(checkResult => {
-        return callbackEvents(checkResult);
-      });
+      checkFieldAsyncForNextValue(name, nextFormValue);
+    } else {
+      checkFieldForNextValue(name, nextFormValue);
     }
+  });
 
-    return Promise.resolve(callbackEvents(model?.checkForField(name, nextFormValue)));
+  const fieldHasError = Boolean(fieldError);
+
+  // Toggle component is a special case that uses `checked` and `defaultChecked` instead of `value` and `defaultValue` props.
+  const valueKey = AccepterComponent === Toggle ? 'checked' : 'value';
+  const accepterProps = {
+    // need to distinguish between undefined and null
+    [valueKey]: fieldValue === undefined ? defaultValue : fieldValue
   };
-
-  let messageNode: React.ReactNode | null = null;
-
-  if (!isUndefined(errorMessage)) {
-    messageNode = errorMessage;
-  } else if (errorFromContext) {
-    const fieldError = formError?.[name];
-
-    if (
-      typeof fieldError === 'string' ||
-      (!fieldError?.array && !fieldError?.object && fieldError?.hasError)
-    ) {
-      messageNode = fieldError;
-    }
-  }
-
-  const ariaDescribedby = controlId ? `${controlId}-help-text` : null;
-
-  const fieldHasError = Boolean(messageNode);
-  const ariaErrormessage = fieldHasError && controlId ? `${controlId}-error-message` : undefined;
 
   return (
-    <Component className={classes} ref={ref}>
+    <Component className={classes} ref={ref} data-testid="form-control-wrapper">
       <AccepterComponent
         id={controlId}
-        aria-labelledby={controlId ? `${controlId}-control-label` : null}
-        aria-describedby={ariaDescribedby}
+        aria-labelledby={labelId}
+        aria-describedby={helpTextId}
         aria-invalid={fieldHasError || undefined}
-        aria-errormessage={ariaErrormessage}
+        aria-errormessage={fieldHasError ? errorMessageId : undefined}
+        {...accepterProps}
         {...rest}
         readOnly={readOnly}
         plaintext={plaintext}
@@ -177,19 +205,17 @@ const FormControl: FormControlComponent = React.forwardRef((props: FormControlPr
         name={name}
         onChange={handleFieldChange}
         onBlur={handleFieldBlur}
-        defaultValue={defaultValue ?? formDefaultValue[name]}
-        value={val}
       />
 
       <FormErrorMessage
-        id={`${controlId}-error-message`}
+        id={errorMessageId}
         role="alert"
         aria-relevant="all"
-        show={!!messageNode}
+        show={fieldHasError}
         className={prefix`message-wrapper`}
         placement={errorPlacement}
       >
-        {messageNode}
+        {fieldError}
       </FormErrorMessage>
     </Component>
   );
@@ -198,14 +224,14 @@ const FormControl: FormControlComponent = React.forwardRef((props: FormControlPr
 FormControl.displayName = 'FormControl';
 FormControl.propTypes = {
   name: PropTypes.string.isRequired,
-  checkTrigger: PropTypes.oneOf(['change', 'blur', 'none']),
+  checkTrigger: oneOf(['change', 'blur', 'none']),
   checkAsync: PropTypes.bool,
   accepter: PropTypes.any,
   onChange: PropTypes.func,
   onBlur: PropTypes.func,
   classPrefix: PropTypes.string,
   errorMessage: PropTypes.node,
-  errorPlacement: PropTypes.oneOf([
+  errorPlacement: oneOf([
     'bottomStart',
     'bottomEnd',
     'topStart',

@@ -1,12 +1,22 @@
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { useClassNames } from '../utils';
-import { TypeAttributes, WithAsProps, RsRefForwardingComponent } from '../@types/common';
-import { AvatarGroupContext } from '../AvatarGroup/AvatarGroup';
+import { useClassNames } from '@/internals/hooks';
+import { isIE } from '@/internals/utils';
+import { WithAsProps, RsRefForwardingComponent, TypeAttributes } from '@/internals/types';
+import { AvatarGroupContext, type Size } from '../AvatarGroup/AvatarGroup';
+import { oneOf } from '@/internals/propTypes';
+import { useCustom } from '../CustomProvider';
+import AvatarIcon from './AvatarIcon';
+import useImage from './useImage';
 
 export interface AvatarProps extends WithAsProps {
-  /** A avatar can have different sizes */
-  size?: TypeAttributes.Size;
+  /**
+   * A avatar can have different sizes.
+   *
+   * @default 'md'
+   * @version xxl and xs added in v5.59.0
+   */
+  size?: Size;
 
   /**
    * The `src` attribute for the `img` element.
@@ -30,48 +40,88 @@ export interface AvatarProps extends WithAsProps {
    */
   imgProps?: React.ImgHTMLAttributes<HTMLImageElement>;
 
-  /** Set avatar shape to circle  */
+  /**
+   * Set avatar shape to circle
+   */
   circle?: boolean;
 
-  /** This attribute defines an alternative text description of the image */
+  /**
+   * This attribute defines an alternative text description of the image
+   */
   alt?: string;
+
+  /**
+   * Show a border around the avatar.
+   * @version 5.59.0
+   */
+  bordered?: boolean;
+
+  /**
+   * Sets the avatar background color.
+   * @version 5.59.0
+   */
+  color?: TypeAttributes.Color;
+
+  /**
+   * Callback fired when the image failed to load.
+   * @version 5.59.0
+   */
+  onError?: OnErrorEventHandler;
 }
 
+/**
+ * The Avatar component is used to represent user or brand.
+ * @see https://rsuitejs.com/components/avatar
+ */
 const Avatar: RsRefForwardingComponent<'div', AvatarProps> = React.forwardRef(
   (props: AvatarProps, ref) => {
+    const { size: groupSize, spacing } = useContext(AvatarGroupContext);
+    const { rtl, propsWithDefaults } = useCustom('Avatar', props);
     const {
-      classPrefix = 'avatar',
       as: Component = 'div',
-      size: sizeProp,
+      bordered,
+      alt,
       className,
       children,
+      circle,
+      color,
+      classPrefix = 'avatar',
+      size = groupSize,
       src,
       srcSet,
       sizes,
+      style,
       imgProps,
-      circle,
-      alt,
+      onError,
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
-    const { size } = useContext(AvatarGroupContext);
     const { withClassPrefix, prefix, merge } = useClassNames(classPrefix);
-    const classes = merge(className, withClassPrefix(sizeProp || size, { circle }));
+    const classes = merge(className, withClassPrefix(size, color, { circle, bordered }));
+    const imageProps = { ...imgProps, alt, src, srcSet, sizes };
+    const { loaded } = useImage({ ...imageProps, onError });
+
+    const altComponent = useMemo(() => {
+      if (alt) {
+        return (
+          <span role="img" aria-label={alt}>
+            {alt}
+          </span>
+        );
+      }
+
+      return null;
+    }, [alt]);
+
+    const placeholder = children || altComponent || <AvatarIcon className={prefix`icon`} />;
+    const image = loaded ? <img {...imageProps} className={prefix`image`} /> : placeholder;
+
+    const margin = rtl ? 'marginLeft' : 'marginRight';
+    const insertStyles = isIE() && spacing ? { [margin]: spacing, ...style } : style;
 
     return (
-      <Component {...rest} ref={ref} className={classes}>
-        {src || srcSet ? (
-          <img
-            {...imgProps}
-            className={prefix`image`}
-            src={src}
-            sizes={sizes}
-            srcSet={srcSet}
-            alt={alt}
-          />
-        ) : (
-          children
-        )}
+      <Component {...rest} ref={ref} className={classes} style={insertStyles}>
+        {src ? image : placeholder}
       </Component>
     );
   }
@@ -83,7 +133,7 @@ Avatar.propTypes = {
   classPrefix: PropTypes.string,
   className: PropTypes.string,
   children: PropTypes.node,
-  size: PropTypes.oneOf(['lg', 'md', 'sm', 'xs']),
+  size: oneOf(['xxl', 'xl', 'lg', 'md', 'sm', 'xs']),
   src: PropTypes.string,
   sizes: PropTypes.string,
   srcSet: PropTypes.string,

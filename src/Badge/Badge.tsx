@@ -1,7 +1,9 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { useClassNames } from '../utils';
-import { WithAsProps, RsRefForwardingComponent, TypeAttributes } from '../@types/common';
+import { useClassNames } from '@/internals/hooks';
+import { WithAsProps, RsRefForwardingComponent, TypeAttributes } from '@/internals/types';
+import { oneOf } from '@/internals/propTypes';
+import { useCustom } from '../CustomProvider';
 
 export interface BadgeProps extends WithAsProps {
   /** Main content */
@@ -14,8 +16,13 @@ export interface BadgeProps extends WithAsProps {
   color?: TypeAttributes.Color;
 }
 
+/**
+ * The Badge component is usually used to mark or highlight the status or quantity of an object.
+ * @see https://rsuitejs.com/components/badge
+ */
 const Badge: RsRefForwardingComponent<'div', BadgeProps> = React.forwardRef(
   (props: BadgeProps, ref) => {
+    const { propsWithDefaults } = useCustom('Badge', props);
     const {
       as: Component = 'div',
       content: contentText,
@@ -25,7 +32,7 @@ const Badge: RsRefForwardingComponent<'div', BadgeProps> = React.forwardRef(
       children,
       maxCount = 99,
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
     const { withClassPrefix, prefix, merge } = useClassNames(classPrefix);
     const dot = contentText === undefined || contentText === null;
@@ -68,7 +75,7 @@ Badge.propTypes = {
   as: PropTypes.elementType,
   content: PropTypes.oneOfType([PropTypes.node, PropTypes.bool]),
   maxCount: PropTypes.number,
-  color: PropTypes.oneOf(['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'violet'])
+  color: oneOf(['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'violet'])
 };
 
 export default Badge;

@@ -1,7 +1,9 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { useClassNames } from '../utils';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import { useClassNames } from '@/internals/hooks';
+import { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
+import { useCustom } from '../CustomProvider';
+import Stack, { StackProps } from '../Stack';
 
 export interface ButtonToolbarProps extends WithAsProps {
   /**
@@ -12,19 +14,27 @@ export interface ButtonToolbarProps extends WithAsProps {
   role?: string;
 }
 
-const ButtonToolbar: RsRefForwardingComponent<'div', ButtonToolbarProps> = React.forwardRef(
+/**
+ * The ButtonToolbar component is used to group a series of buttons together in a single line.
+ * @see https://rsuitejs.com/components/button/#button-toolbar
+ */
+const ButtonToolbar: RsRefForwardingComponent<typeof Stack, ButtonToolbarProps> = React.forwardRef(
   (props: ButtonToolbarProps, ref) => {
+    const { propsWithDefaults } = useCustom('ButtonToolbar', props);
     const {
       className,
       classPrefix = 'btn-toolbar',
-      as: Component = 'div',
+      as: Component = Stack,
       role = 'toolbar',
       ...rest
-    } = props;
+    } = propsWithDefaults;
+
+    const stackProps: StackProps | null =
+      Component === Stack ? { wrap: true, spacing: 10, childrenRenderMode: 'clone' } : null;
 
     const { withClassPrefix, merge } = useClassNames(classPrefix);
     const classes = merge(className, withClassPrefix());
-    return <Component {...rest} role={role} ref={ref} className={classes} />;
+    return <Component {...stackProps} {...rest} role={role} ref={ref} className={classes} />;
   }
 );
 

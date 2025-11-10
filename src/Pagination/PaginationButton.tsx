@@ -1,8 +1,8 @@
-import React, { useCallback } from 'react';
-import PropTypes from 'prop-types';
-import Ripple from '../Ripple';
-import { useClassNames, createChainedFunction } from '../utils';
-import { WithAsProps, RsRefForwardingComponent } from '../@types/common';
+import React from 'react';
+import Ripple from '@/internals/Ripple';
+import { useClassNames, useEventCallback } from '@/internals/hooks';
+import { createChainedFunction } from '@/internals/utils';
+import { WithAsProps, RsRefForwardingComponent } from '@/internals/types';
 
 export interface PaginationButtonProps<T = number | string>
   extends WithAsProps,
@@ -45,15 +45,12 @@ const PaginationButton: RsRefForwardingComponent<'button', PaginationButtonProps
     const { merge, withClassPrefix } = useClassNames(classPrefix);
     const classes = merge(className, withClassPrefix({ active, disabled }));
 
-    const handleClick = useCallback(
-      (event: React.MouseEvent) => {
-        if (disabled) {
-          return;
-        }
-        onSelect?.(eventKey, event);
-      },
-      [disabled, eventKey, onSelect]
-    );
+    const handleClick = useEventCallback((event: React.MouseEvent) => {
+      if (disabled) {
+        return;
+      }
+      onSelect?.(eventKey, event);
+    });
 
     const asProps: Partial<PaginationButtonProps> = {};
 
@@ -79,18 +76,5 @@ const PaginationButton: RsRefForwardingComponent<'button', PaginationButtonProps
   });
 
 PaginationButton.displayName = 'PaginationButton';
-PaginationButton.propTypes = {
-  classPrefix: PropTypes.string,
-  eventKey: PropTypes.any,
-  onSelect: PropTypes.func,
-  onClick: PropTypes.func,
-  disabled: PropTypes.bool,
-  active: PropTypes.bool,
-  className: PropTypes.string,
-  as: PropTypes.elementType,
-  children: PropTypes.node,
-  style: PropTypes.object,
-  renderItem: PropTypes.func
-};
 
 export default PaginationButton;

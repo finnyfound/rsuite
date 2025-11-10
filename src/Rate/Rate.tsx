@@ -1,18 +1,21 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import isNil from 'lodash/isNil';
-import Star from '@rsuite/icons/legacy/Star';
-
-import { useClassNames, useControlled, shallowEqualArray, SIZE, KEY_VALUES } from '../utils';
-import { transformValueToCharacterMap, transformCharacterMapToValue, CharacterType } from './utils';
+import Star from '@rsuite/icons/Star';
 import Character from './Character';
-import Plaintext from '../Plaintext';
-import {
+import Plaintext from '@/internals/Plaintext';
+import { oneOf } from '@/internals/propTypes';
+import { SIZE, KEY_VALUES } from '@/internals/constants';
+import { useControlled, useClassNames } from '@/internals/hooks';
+import { shallowEqualArray } from '@/internals/utils';
+import { transformValueToCharacterMap, transformCharacterMapToValue, CharacterType } from './utils';
+import { useCustom } from '../CustomProvider';
+import type {
   WithAsProps,
   TypeAttributes,
   RsRefForwardingComponent,
   FormControlBaseProps
-} from '../@types/common';
+} from '@/internals/types';
 
 export interface RateProps<T = number> extends WithAsProps, FormControlBaseProps<T> {
   // Whether to allow semi selection
@@ -46,8 +49,13 @@ export interface RateProps<T = number> extends WithAsProps, FormControlBaseProps
   onChangeActive?: (value: T, event: React.SyntheticEvent) => void;
 }
 
+/**
+ * The `Rate` component is used for rating. It can be used to evaluate the quality of the content.
+ * @see https://rsuitejs.com/components/rate/
+ */
 const Rate: RsRefForwardingComponent<'ul', RateProps> = React.forwardRef(
   (props: RateProps, ref) => {
+    const { propsWithDefaults } = useCustom('Rate', props);
     const {
       as: Component = 'ul',
       character = <Star />,
@@ -68,7 +76,7 @@ const Rate: RsRefForwardingComponent<'ul', RateProps> = React.forwardRef(
       renderCharacter,
       onChangeActive,
       ...rest
-    } = props;
+    } = propsWithDefaults;
 
     const [value, setValue] = useControlled(valueProp, defaultValue);
 
@@ -222,7 +230,7 @@ Rate.propTypes = {
   max: PropTypes.number,
   renderCharacter: PropTypes.func,
   readOnly: PropTypes.bool,
-  size: PropTypes.oneOf(SIZE),
+  size: oneOf(SIZE),
   value: PropTypes.number,
   vertical: PropTypes.bool,
   onChange: PropTypes.func,

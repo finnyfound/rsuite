@@ -1,98 +1,140 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import omit from 'lodash/omit';
 import pick from 'lodash/pick';
 import isNil from 'lodash/isNil';
 import isFunction from 'lodash/isFunction';
-import shallowEqual from '../utils/shallowEqual';
-import DropdownMenu from './DropdownMenu';
-import { findNodeOfTree, flattenTree, getNodeParents } from '../utils/treeUtils';
-import { usePaths } from './utils';
+import TreeView from '../CascadeTree/TreeView';
+import SearchView from '../CascadeTree/SearchView';
+import type { SelectNode, CascadeTreeProps } from '../CascadeTree/types';
+import { usePaths, useSelect, useSearch } from '../CascadeTree/hooks';
+import { flattenTree } from '../Tree/utils';
+import { findNodeOfTree, getParentMap } from '@/internals/Tree/utils';
+import { deprecatePropTypeNew } from '@/internals/propTypes';
 import { PickerLocale } from '../locales';
-import {
-  getSafeRegExpString,
-  createChainedFunction,
-  mergeRefs,
-  useControlled,
-  useCustom,
-  useClassNames
-} from '../utils';
-
+import { useControlled, useClassNames, useEventCallback, useMap } from '@/internals/hooks';
+import { createChainedFunction, mergeRefs, shallowEqual } from '@/internals/utils';
 import {
   PickerToggle,
-  PickerOverlay,
-  SearchBar,
+  PickerPopup,
   PickerToggleTrigger,
   usePickerClassName,
-  usePublicMethods,
+  usePickerRef,
   useToggleKeyDownEvent,
   useFocusItemValue,
   pickTriggerPropKeys,
   omitTriggerPropKeys,
-  OverlayTriggerInstance,
   PositionChildProps,
   listPickerPropTypes,
-  PickerComponent
-} from '../Picker';
+  PickerHandle,
+  PickerToggleProps
+} from '@/internals/Picker';
+import { ItemDataType, DataItemValue, FormControlPickerProps } from '@/internals/types';
+import { oneOf } from '@/internals/propTypes';
+import { useCustom } from '../CustomProvider';
+import useActive from './useActive';
 
-import { ItemDataType, FormControlPickerProps } from '../@types/common';
-
-export type ValueType = number | string;
-export interface CascaderProps<T = ValueType>
-  extends FormControlPickerProps<T | null, PickerLocale, ItemDataType> {
-  /** Sets the width of the menu */
-  menuWidth?: number;
-
-  /** Sets the height of the menu */
-  menuHeight?: number | string;
-
-  /** Whether dispaly search input box */
-  searchable?: boolean;
-
-  /** The menu is displayed directly when the component is initialized */
+export interface CascaderProps<T = DataItemValue>
+  extends FormControlPickerProps<T, PickerLocale, ItemDataType<T>>,
+    CascadeTreeProps<T, T, PickerLocale>,
+    Pick<PickerToggleProps, 'label' | 'caretAs' | 'loading'> {
+  /**
+   * The panel is displayed directly when the component is initialized
+   * @deprecated Use CascadeTree instead
+   * @see CascadeTree https://rsuitejs.com/components/cascade-tree
+   */
   inline?: boolean;
 
-  /** When true, make the parent node selectable */
+  /**
+   * When true, make the parent node selectable
+   */
   parentSelectable?: boolean;
 
-  /** Custom render menu */
+  /**
+   * Custom popup style
+   */
+  popupClassName?: string;
+
+  /**
+   * Custom popup style
+   */
+  popupStyle?: React.CSSProperties;
+
+  /**
+   * Custom menu class name
+   * @deprecated Use popupClassName instead
+   */
+  menuClassName?: string;
+
+  /**
+   * Custom menu style
+   * @deprecated Use popupStyle instead
+   */
+  menuStyle?: React.CSSProperties;
+
+  /**
+   * Sets the width of the menu.
+   *
+   * @deprecated Use columnWidth instead
+   */
+  menuWidth?: number;
+
+  /**
+   * Sets the height of the menu
+   * @deprecated Use columnHeight instead
+   */
+  menuHeight?: number | string;
+
+  /**
+   * Custom render menu
+   * @deprecated Use renderColumn instead
+   */
   renderMenu?: (
-    items: ItemDataType[],
+    items: readonly ItemDataType<T>[],
     menu: React.ReactNode,
     parentNode?: any,
     layer?: number
   ) => React.ReactNode;
 
-  /** Custom render menu items */
-  renderMenuItem?: (itemLabel: React.ReactNode, item: ItemDataType) => React.ReactNode;
+  /**
+   * Custom render menu item
+   * @deprecated Use renderTreeNode instead
+   */
+  renderMenuItem?: (node: React.ReactNode, item: ItemDataType<T>) => React.ReactNode;
 
-  /** Custom render selected items */
+  /**
+   * Custom render selected items
+   */
   renderValue?: (
     value: T,
-    selectedPaths: ItemDataType[],
+    selectedPaths: ItemDataType<T>[],
     selectedElement: React.ReactNode
   ) => React.ReactNode;
 
-  /** Called when the option is selected */
-  onSelect?: (
-    value: ItemDataType,
-    selectedPaths: ItemDataType[],
-    event: React.SyntheticEvent
-  ) => void;
-
-  /** Called when clean */
+  /**
+   * Called when clean
+   */
   onClean?: (event: React.SyntheticEvent) => void;
+}
 
-  /** Called when searching */
-  onSearch?: (searchKeyword: string, event: React.SyntheticEvent) => void;
-
-  /** Asynchronously load the children of the tree node. */
-  getChildren?: (node: ItemDataType) => ItemDataType[] | Promise<ItemDataType[]>;
+export interface CascaderComponent {
+  <T>(
+    props: CascaderProps<T> & {
+      ref?: React.Ref<PickerHandle>;
+    }
+  ): JSX.Element | null;
+  displayName?: string;
+  propTypes?: React.WeakValidationMap<CascaderProps<any>>;
 }
 
 const emptyArray = [];
 
-const Cascader: PickerComponent<CascaderProps> = React.forwardRef((props: CascaderProps, ref) => {
+/**
+ * The `Cascader` component displays a hierarchical list of options.
+ * @see https://rsuitejs.com/components/cascader
+ */
+const Cascader = React.forwardRef(<T extends DataItemValue>(props: CascaderProps<T>, ref) => {
+  const { rtl, propsWithDefaults } = useCustom('Cascader', props);
   const {
     as: Component = 'div',
     data = emptyArray,
@@ -106,114 +148,122 @@ const Cascader: PickerComponent<CascaderProps> = React.forwardRef((props: Cascad
     disabledItemValues = emptyArray,
     appearance = 'default',
     cleanable = true,
-    locale: overrideLocale,
+    locale,
     toggleAs,
     style,
     value: valueProp,
-    inline,
-    menuClassName,
-    menuStyle,
-    menuWidth,
-    menuHeight,
+    popupClassName,
+    popupStyle,
+    columnHeight,
+    columnWidth,
     searchable = true,
     parentSelectable,
     placement = 'bottomStart',
     id,
-    renderMenuItem,
+    renderColumn,
+    renderTreeNode,
+    renderSearchItem,
     renderValue,
-    renderMenu,
     renderExtraFooter,
-    onEnter,
+    onEntered,
     onExited,
     onClean,
     onChange,
     onSelect,
     onSearch,
-    onClose,
-    onOpen,
     getChildren,
+    menuClassName: DEPRECATED_menuClassName,
+    menuStyle: DEPRECATED_menuStyle,
+    menuWidth: DEPRECATED_menuWidth,
+    menuHeight: DEPRECATED_menuHeight,
+    renderMenuItem: DEPRECATED_renderMenuItem,
+    renderMenu: DEPRECATED_renderMenu,
     ...rest
-  } = props;
+  } = propsWithDefaults;
 
-  // Use component active state to support keyboard events.
-  const [active, setActive] = useState(false);
-  const [flattenData, setFlattenData] = useState<ItemDataType[]>(flattenTree(data, childrenKey));
+  const { trigger, root, target, overlay, searchInput } = usePickerRef(ref);
+  const [value, setValue] = useControlled(valueProp, defaultValue) as [
+    T | null | undefined,
+    (value: React.SetStateAction<T | null>) => void,
+    boolean
+  ];
 
-  const triggerRef = useRef<OverlayTriggerInstance>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
-  const targetRef = useRef<HTMLButtonElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const [value, setValue] = useControlled(valueProp, defaultValue);
+  // Store the children of each node
+  const childrenMap = useMap<ItemDataType<T>, readonly ItemDataType<T>[]>();
 
-  const {
-    selectedPaths,
-    valueToPaths,
-    columnData,
-    addColumn,
-    setValueToPaths,
-    setColumnData,
-    setSelectedPaths,
-    enforceUpdate
-  } = usePaths({
-    data,
+  // Store the parent of each node
+  const parentMap = useMemo(
+    () => getParentMap(data, item => childrenMap.get(item) ?? item[childrenKey]),
+    [childrenMap, childrenKey, data]
+  );
+
+  // Flatten the tree data
+  const flattenedData = useMemo(
+    () => flattenTree(data, item => childrenMap.get(item) ?? item[childrenKey]),
+    [childrenMap, childrenKey, data]
+  );
+
+  // The selected item
+  const selectedItem = flattenedData.find(item => item[valueKey] === value);
+
+  // Callback function after selecting the node
+  const onSelectCallback = (node: SelectNode<T>, event: React.SyntheticEvent) => {
+    const { isLeafNode, cascadePaths, itemData } = node;
+
+    onSelect?.(itemData, cascadePaths, event);
+
+    const nextValue = itemData[valueKey];
+
+    if (isLeafNode) {
+      // Determines whether the option is a leaf node, and if so, closes the picker.
+      handleClose();
+      setValue(nextValue);
+      return;
+    }
+
+    //  When the parent is optional, the value and the displayed path are updated.
+    if (parentSelectable && !shallowEqual(value, nextValue)) {
+      setValue(nextValue);
+      onChange?.(nextValue, event);
+    }
+
+    // Update menu position
+    trigger.current?.updatePosition();
+  };
+
+  const { activeItem, setActiveItem, loadingItemsSet, handleSelect } = useSelect<T>({
+    value,
     valueKey,
     childrenKey,
-    value
+    childrenMap,
+    selectedItem,
+    getChildren,
+    onChange,
+    onSelect: onSelectCallback
   });
 
-  useEffect(() => {
-    setFlattenData(flattenTree(data, childrenKey));
-  }, [data, childrenKey]);
+  const { columns, pathTowardsActiveItem, pathTowardsSelectedItem } = usePaths({
+    data,
+    activeItem,
+    selectedItem,
+    getParent: item => parentMap.get(item),
+    getChildren: item =>
+      childrenMap.get(item) ?? (item[childrenKey] as readonly ItemDataType<T>[] | undefined)
+  });
 
-  usePublicMethods(ref, { triggerRef, overlayRef, targetRef });
-
-  const { locale, rtl } = useCustom<PickerLocale>('Picker', overrideLocale);
   /**
    * 1.Have a value and the value is valid.
    * 2.Regardless of whether the value is valid, as long as renderValue is set, it is judged to have a value.
    */
-  let hasValue = valueToPaths.length > 0 || (!isNil(value) && isFunction(renderValue));
+  let hasValue = pathTowardsSelectedItem.length > 0 || (!isNil(value) && isFunction(renderValue));
 
   const { prefix, merge } = useClassNames(classPrefix);
 
-  const [searchKeyword, setSearchKeyword] = useState('');
-
-  const someKeyword = useCallback(
-    (item: ItemDataType, keyword?: string) => {
-      if (item[labelKey].match(new RegExp(getSafeRegExpString(keyword || searchKeyword), 'i'))) {
-        return true;
-      }
-
-      if (item.parent && someKeyword(item.parent)) {
-        return true;
-      }
-
-      return false;
+  const onFocusItemCallback = useCallback(
+    value => {
+      setActiveItem(flattenedData.find(item => item[valueKey] === value));
     },
-    [labelKey, searchKeyword]
-  );
-
-  const getSearchResult = useCallback(
-    (keyword?: string): ItemDataType[] => {
-      const items: ItemDataType[] = [];
-      const result = flattenData.filter(item => {
-        if (item[childrenKey]) {
-          return false;
-        }
-        return someKeyword(item, keyword);
-      });
-
-      for (let i = 0; i < result.length; i++) {
-        items.push(result[i]);
-
-        // A maximum of 100 search results are returned.
-        if (i === 99) {
-          return items;
-        }
-      }
-      return items;
-    },
-    [childrenKey, flattenData, someKeyword]
+    [flattenedData, setActiveItem, valueKey]
   );
 
   // Used to hover the focuse item  when trigger `onKeydown`
@@ -225,102 +275,89 @@ const Cascader: PickerComponent<CascaderProps> = React.forwardRef((props: Cascad
     onKeyDown: onFocusItem
   } = useFocusItemValue(value, {
     rtl,
-    data: flattenData,
+    data: flattenedData,
     valueKey,
-    defaultLayer: valueToPaths?.length ? valueToPaths.length - 1 : 0,
-    target: () => overlayRef.current,
-    callback: useCallback(
-      value => {
-        enforceUpdate(value, true);
-      },
-      [enforceUpdate]
-    )
+    defaultLayer: pathTowardsSelectedItem?.length ? pathTowardsSelectedItem.length - 1 : 0,
+    target: () => overlay.current,
+    getParent: item => parentMap.get(item),
+    callback: onFocusItemCallback
   });
 
-  const handleSearch = useCallback(
-    (value: string, event: React.SyntheticEvent) => {
-      const items = getSearchResult(value);
+  const onSearchCallback = (
+    value: string,
+    items: ItemDataType<T>[],
+    event: React.SyntheticEvent
+  ) => {
+    onSearch?.(value, event);
 
-      setSearchKeyword(value);
-      onSearch?.(value, event);
-      if (items.length > 0) {
-        setFocusItemValue(items[0][valueKey]);
-        setLayer(0);
-        setKeys([]);
+    if (!value || items.length === 0) {
+      setFocusItemValue(undefined);
+      return;
+    }
+
+    if (items.length > 0) {
+      setFocusItemValue(items[0][valueKey]);
+      setLayer(0);
+      setKeys([]);
+    }
+  };
+
+  const { items, searchKeyword, setSearchKeyword, handleSearch } = useSearch({
+    labelKey,
+    childrenKey,
+    parentMap,
+    flattenedData,
+    parentSelectable,
+    onSearch: onSearchCallback
+  });
+
+  const { active, handleEntered, handleExited } = useActive({
+    onEntered,
+    onExited,
+    target,
+    setSearchKeyword
+  });
+
+  const handleClose = useEventCallback(() => {
+    trigger.current?.close();
+
+    // The focus is on the trigger button after closing
+    target.current?.focus?.();
+  });
+
+  const handleClean = useEventCallback((event: React.SyntheticEvent) => {
+    if (disabled || !target.current) {
+      return;
+    }
+
+    setValue(null);
+    onChange?.(null as T, event);
+  });
+
+  const handleMenuPressEnter = useEventCallback((event: React.SyntheticEvent) => {
+    const focusItem = findNodeOfTree(data, item => item[valueKey] === focusItemValue);
+    const isLeafNode = focusItem && !focusItem[childrenKey];
+
+    if (isLeafNode) {
+      setValue(focusItemValue as T);
+      if (pathTowardsActiveItem.length) {
+        setLayer(pathTowardsActiveItem.length - 1);
       }
-    },
-    [getSearchResult, onSearch, setFocusItemValue, setKeys, setLayer, valueKey]
-  );
 
-  const handleEntered = useCallback(() => {
-    onOpen?.();
-    setActive(true);
-  }, [onOpen]);
-
-  const handleExited = useCallback(() => {
-    onClose?.();
-    setActive(false);
-    setSearchKeyword('');
-  }, [onClose]);
-
-  const handleClose = useCallback(() => {
-    triggerRef.current?.close();
-  }, [triggerRef]);
-
-  const handleClean = useCallback(
-    (event: React.SyntheticEvent) => {
-      if (disabled) {
-        return;
+      if (!shallowEqual(value, focusItemValue)) {
+        onSelect?.(focusItem as ItemDataType<T>, pathTowardsActiveItem, event);
+        onChange?.(focusItemValue ?? (null as T), event);
       }
-
-      setColumnData([data]);
-      setValue(null);
-      setSelectedPaths([]);
-      setValueToPaths([]);
-      onChange?.(null, event);
-    },
-    [data, disabled, onChange, setSelectedPaths, setColumnData, setValueToPaths, setValue]
-  );
-
-  const handleMenuPressEnter = useCallback(
-    (event: React.SyntheticEvent) => {
-      const focusItem = findNodeOfTree(data, item => item[valueKey] === focusItemValue);
-      const isLeafNode = focusItem && !focusItem[childrenKey];
-
-      if (isLeafNode) {
-        setValue(focusItemValue);
-        setValueToPaths(selectedPaths);
-        if (selectedPaths.length) {
-          setLayer(selectedPaths.length - 1);
-        }
-
-        if (!shallowEqual(value, focusItemValue)) {
-          onChange?.(focusItemValue ?? null, event);
-        }
-        handleClose();
-      }
-    },
-    [
-      childrenKey,
-      data,
-      focusItemValue,
-      handleClose,
-      onChange,
-      selectedPaths,
-      setLayer,
-      setValue,
-      setValueToPaths,
-      value,
-      valueKey
-    ]
-  );
+      handleClose();
+    }
+  });
 
   const onPickerKeyDown = useToggleKeyDownEvent({
     toggle: !focusItemValue || !active,
-    triggerRef,
-    targetRef,
-    overlayRef,
-    searchInputRef,
+    trigger,
+    target,
+    overlay,
+    searchInput,
     active,
     onExit: handleClean,
     onMenuKeyDown: onFocusItem,
@@ -328,208 +365,117 @@ const Cascader: PickerComponent<CascaderProps> = React.forwardRef((props: Cascad
     ...rest
   });
 
-  const handleSelect = (
-    node: ItemDataType,
-    cascadePaths: ItemDataType[],
-    isLeafNode: boolean,
-    event: React.MouseEvent
-  ) => {
-    const nextValue = node[valueKey];
-
-    onSelect?.(node, cascadePaths, event);
-    setSelectedPaths(cascadePaths);
-
-    // Lazy load node's children
-    if (typeof getChildren === 'function' && node[childrenKey]?.length === 0) {
-      node.loading = true;
-
-      const children = getChildren(node);
-
-      if (children instanceof Promise) {
-        children.then((data: ItemDataType[]) => {
-          node.loading = false;
-          node[childrenKey] = data;
-          addColumn(data, cascadePaths.length);
-        });
-      } else {
-        node.loading = false;
-        node[childrenKey] = children;
-        addColumn(children as ItemDataType[], cascadePaths.length);
-      }
-    } else if (node[childrenKey]?.length) {
-      addColumn(node[childrenKey], cascadePaths.length);
-    }
-
-    if (isLeafNode) {
-      // Determines whether the option is a leaf node, and if so, closes the picker.
-      handleClose();
-
-      // Update the selected path to the value path.
-      // That is, the selected path will be displayed on the button after clicking the child node.
-      setValueToPaths(cascadePaths);
-      setValue(nextValue);
-
-      if (!shallowEqual(value, nextValue)) {
-        onChange?.(nextValue, event);
-      }
-
-      return;
-    }
-
-    /** When the parent is optional, the value and the displayed path are updated. */
-    if (parentSelectable && !shallowEqual(value, nextValue)) {
-      setValue(nextValue);
-      onChange?.(nextValue, event);
-      setValueToPaths(cascadePaths);
-    }
-
-    // Update menu position
-    triggerRef.current?.updatePosition();
-  };
-
   /**
    * The search structure option is processed after being selected.
    */
-  const handleSearchRowSelect = (
-    node: ItemDataType,
-    nodes: ItemDataType[],
-    event: React.SyntheticEvent
-  ) => {
-    const nextValue = node[valueKey];
+  const handleSearchRowSelect = useEventCallback(
+    (itemData: ItemDataType<T>, nodes: ItemDataType<T>[], event: React.SyntheticEvent) => {
+      const nextValue = itemData[valueKey];
 
-    handleClose();
-    setSearchKeyword('');
-    setValue(nextValue);
-    setValueToPaths(nodes);
-    enforceUpdate(nextValue);
+      handleClose();
+      setSearchKeyword('');
+      setValue(nextValue);
 
-    onSelect?.(node, nodes, event);
-    onChange?.(nextValue, event);
-  };
-
-  const renderSearchRow = (item: ItemDataType, key: number) => {
-    const regx = new RegExp(getSafeRegExpString(searchKeyword), 'ig');
-    const nodes = getNodeParents(item);
-    nodes.push(item);
-    const formattedNodes = nodes.map(node => {
-      const labelElements: React.ReactElement[] = [];
-      const a = node[labelKey].split(regx);
-      const b = node[labelKey].match(regx);
-
-      for (let i = 0; i < a.length; i++) {
-        labelElements.push(a[i]);
-        if (b && b[i]) {
-          labelElements.push(
-            <span key={i} className={prefix('cascader-search-match')}>
-              {b[i]}
-            </span>
-          );
-        }
-      }
-      return { ...node, [labelKey]: labelElements };
-    });
-
-    const disabled = disabledItemValues.some(value =>
-      formattedNodes.some(node => node[valueKey] === value)
-    );
-    const itemClasses = prefix('cascader-row', {
-      'cascader-row-disabled': disabled,
-      'cascader-row-focus': item[valueKey] === focusItemValue
-    });
-
-    return (
-      <div
-        key={key}
-        aria-disabled={disabled}
-        data-key={item[valueKey]}
-        className={itemClasses}
-        onClick={event => {
-          if (!disabled) {
-            handleSearchRowSelect(item, nodes, event);
-          }
-        }}
-      >
-        {formattedNodes.map((node, index) => (
-          <span key={`col-${index}`} className={prefix('cascader-col')}>
-            {node[labelKey]}
-          </span>
-        ))}
-      </div>
-    );
-  };
-
-  const renderSearchResultPanel = () => {
-    if (searchKeyword === '') {
-      return null;
+      onSelect?.(itemData, nodes, event);
+      onChange?.(nextValue, event);
     }
+  );
 
-    const items = getSearchResult();
-    return (
-      <div className={prefix('cascader-search-panel')} data-layer={0}>
-        {items.length ? (
-          items.map(renderSearchRow)
-        ) : (
-          <div className={prefix('none')}>{locale.noResultsText}</div>
-        )}
-      </div>
-    );
+  const renderCascadeColumn = (
+    childNodes: React.ReactNode,
+    column: {
+      items: readonly ItemDataType<T>[];
+      parentItem?: ItemDataType<T>;
+      layer?: number;
+    }
+  ) => {
+    const { items, parentItem, layer } = column;
+
+    if (typeof renderColumn === 'function') {
+      return renderColumn(childNodes, column);
+    } else if (typeof DEPRECATED_renderMenu === 'function') {
+      return DEPRECATED_renderMenu(items, childNodes, parentItem, layer);
+    }
+    return childNodes;
   };
 
-  const renderDropdownMenu = (positionProps?: PositionChildProps, speakerRef?) => {
+  const renderCascadeTreeNode = (node: React.ReactNode, itemData: ItemDataType<T>) => {
+    const render =
+      typeof renderTreeNode === 'function' ? renderTreeNode : DEPRECATED_renderMenuItem;
+
+    if (typeof render === 'function') {
+      return render(node, itemData);
+    }
+    return node;
+  };
+
+  const renderTreeView = (positionProps?: PositionChildProps, speakerRef?) => {
     const { left, top, className } = positionProps || {};
-    const styles = { ...menuStyle, left, top };
-    const classes = merge(className, menuClassName, prefix('cascader-menu', { inline }));
+    const styles = { ...DEPRECATED_menuStyle, ...popupStyle, left, top };
+    const classes = merge(
+      className,
+      DEPRECATED_menuClassName,
+      popupClassName,
+      prefix('popup-cascader')
+    );
 
     return (
-      <PickerOverlay
-        ref={mergeRefs(overlayRef, speakerRef)}
+      <PickerPopup
+        ref={mergeRefs(overlay, speakerRef)}
         className={classes}
         style={styles}
-        target={triggerRef}
+        target={trigger}
         onKeyDown={onPickerKeyDown}
       >
         {searchable && (
-          <SearchBar
-            placeholder={locale?.searchPlaceholder}
-            onChange={handleSearch}
-            value={searchKeyword}
-            inputRef={searchInputRef}
+          <SearchView<T>
+            data={items}
+            searchKeyword={searchKeyword}
+            valueKey={valueKey}
+            labelKey={labelKey}
+            locale={locale}
+            parentMap={parentMap}
+            disabledItemValues={disabledItemValues}
+            focusItemValue={focusItemValue}
+            inputRef={searchInput}
+            renderSearchItem={renderSearchItem}
+            onSelect={handleSearchRowSelect}
+            onSearch={handleSearch}
           />
         )}
 
-        {renderSearchResultPanel()}
         {searchKeyword === '' && (
-          <DropdownMenu
-            id={id ? `${id}-listbox` : undefined}
-            menuWidth={menuWidth}
-            menuHeight={menuHeight}
+          <TreeView
+            columnWidth={columnWidth ?? DEPRECATED_menuWidth}
+            columnHeight={columnHeight ?? DEPRECATED_menuHeight}
             disabledItemValues={disabledItemValues}
+            loadingItemsSet={loadingItemsSet}
             valueKey={valueKey}
             labelKey={labelKey}
             childrenKey={childrenKey}
-            classPrefix={'picker-cascader-menu'}
-            cascadeData={columnData}
-            cascadePaths={selectedPaths}
+            classPrefix={'cascade-tree'}
+            data={columns}
+            cascadePaths={pathTowardsActiveItem}
             activeItemValue={value}
             onSelect={handleSelect}
-            renderMenu={renderMenu}
-            renderMenuItem={renderMenuItem}
+            renderColumn={renderCascadeColumn}
+            renderTreeNode={renderCascadeTreeNode}
           />
         )}
         {renderExtraFooter?.()}
-      </PickerOverlay>
+      </PickerPopup>
     );
   };
 
   let selectedElement: any = placeholder;
 
-  if (valueToPaths.length > 0) {
+  if (pathTowardsSelectedItem.length > 0) {
     selectedElement = [];
 
-    valueToPaths.forEach((item, index) => {
+    pathTowardsSelectedItem.forEach((item, index) => {
       const key = item[valueKey] || item[labelKey];
       selectedElement.push(<span key={key}>{item[labelKey]}</span>);
-      if (index < valueToPaths.length - 1) {
+      if (index < pathTowardsSelectedItem.length - 1) {
         selectedElement.push(
           <span className="separator" key={`${key}-separator`}>
             {' / '}
@@ -540,7 +486,7 @@ const Cascader: PickerComponent<CascaderProps> = React.forwardRef((props: Cascad
   }
 
   if (!isNil(value) && isFunction(renderValue)) {
-    selectedElement = renderValue(value, valueToPaths, selectedElement);
+    selectedElement = renderValue(value, pathTowardsSelectedItem, selectedElement);
     // If renderValue returns null or undefined, hasValue is false.
     if (isNil(selectedElement)) {
       hasValue = false;
@@ -556,26 +502,21 @@ const Cascader: PickerComponent<CascaderProps> = React.forwardRef((props: Cascad
     cleanable
   });
 
-  // TODO: bad api design
-  //       consider an isolated Menu component
-  if (inline) {
-    return renderDropdownMenu();
-  }
-
   return (
     <PickerToggleTrigger
+      id={id}
+      popupType="tree"
       pickerProps={pick(props, pickTriggerPropKeys)}
-      ref={triggerRef}
+      ref={trigger}
       placement={placement}
-      onEntered={createChainedFunction(handleEntered, onEnter)}
-      onExited={createChainedFunction(handleExited, onExited)}
-      speaker={renderDropdownMenu}
+      onEntered={handleEntered}
+      onExited={handleExited}
+      speaker={renderTreeView}
     >
-      <Component className={classes} style={style}>
+      <Component className={classes} style={style} ref={root}>
         <PickerToggle
           {...omit(rest, [...omitTriggerPropKeys, ...usedClassNamePropKeys])}
-          id={id}
-          ref={targetRef}
+          ref={target}
           as={toggleAs}
           appearance={appearance}
           disabled={disabled}
@@ -586,30 +527,36 @@ const Cascader: PickerComponent<CascaderProps> = React.forwardRef((props: Cascad
           active={active}
           placement={placement}
           inputValue={value ?? ''}
+          focusItemValue={focusItemValue}
         >
           {selectedElement || locale?.placeholder}
         </PickerToggle>
       </Component>
     </PickerToggleTrigger>
   );
-});
+}) as CascaderComponent;
 
 Cascader.displayName = 'Cascader';
 Cascader.propTypes = {
   ...listPickerPropTypes,
   disabledItemValues: PropTypes.array,
   locale: PropTypes.any,
-  appearance: PropTypes.oneOf(['default', 'subtle']),
-  renderMenu: PropTypes.func,
+  appearance: oneOf(['default', 'subtle']),
   onSelect: PropTypes.func,
   onSearch: PropTypes.func,
   cleanable: PropTypes.bool,
-  renderMenuItem: PropTypes.func,
-  menuWidth: PropTypes.number,
-  menuHeight: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  renderColumn: PropTypes.func,
+  renderTreeNode: PropTypes.func,
+  renderSearchItem: PropTypes.func,
+  columnWidth: PropTypes.number,
+  columnHeight: PropTypes.number,
   searchable: PropTypes.bool,
-  inline: PropTypes.bool,
-  parentSelectable: PropTypes.bool
+  parentSelectable: PropTypes.bool,
+  inline: deprecatePropTypeNew(PropTypes.bool, 'Use `<CascadeTree>` instead.'),
+  renderMenu: deprecatePropTypeNew(PropTypes.func, 'Use "renderColumn" property instead.'),
+  renderMenuItem: deprecatePropTypeNew(PropTypes.func, 'Use "renderTreeNode" property instead.'),
+  menuWidth: deprecatePropTypeNew(PropTypes.number, 'Use "columnWidth" property instead.'),
+  menuHeight: deprecatePropTypeNew(PropTypes.number, 'Use "columnHeight" property instead.')
 };
 
 export default Cascader;
